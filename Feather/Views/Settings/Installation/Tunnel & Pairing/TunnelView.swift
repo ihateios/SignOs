@@ -17,7 +17,7 @@ struct TunnelView: View {
 	@State private var isLocalDevVpnAvailable = false
 	
 	// MARK: Body
-    var body: some View {
+	var body: some View {
 		Group {
 			Section {
 				_tunnelInfo()
@@ -79,8 +79,8 @@ struct TunnelView: View {
 		}
 		.onAppear {
 			doesHavePairingFile = FileManager.default.fileExists(atPath: HeartbeatManager.pairingFile())
-			? true
-			: false
+				? true
+				: false
 			
 			if let url = URL(string: "localdevvpn://") {
 				isLocalDevVpnAvailable = UIApplication.shared.canOpenURL(url)
@@ -88,7 +88,7 @@ struct TunnelView: View {
 				isLocalDevVpnAvailable = false
 			}
 		}
-    }
+	}
 	
 	@ViewBuilder
 	private func _tunnelInfo() -> some View {

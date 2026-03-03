@@ -77,25 +77,25 @@ struct SourcesAddView: View {
 						}
 					}
 					
-				Button(.localized("Export"), systemImage: "doc.on.doc") {
-					let sources = Storage.shared.getSources()
-					guard !sources.isEmpty else {
+					Button(.localized("Export"), systemImage: "doc.on.doc") {
+						let sources = Storage.shared.getSources()
+						guard !sources.isEmpty else {
+							UIAlertController.showAlertWithOk(
+								title: .localized("Error"),
+								message: .localized("No sources to export")
+							)
+							return
+						}
+						UIPasteboard.general.string = sources.map {
+							$0.sourceURL!.absoluteString
+						}.joined(separator: "\n")
 						UIAlertController.showAlertWithOk(
-							title: .localized("Error"),
-							message: .localized("No sources to export")
-						)
-						return
+							title: .localized("Success"),
+							message: .localized("Sources copied to clipboard")
+						) {
+							dismiss()
+						}
 					}
-					UIPasteboard.general.string = sources.map {
-						$0.sourceURL!.absoluteString
-					}.joined(separator: "\n")
-					UIAlertController.showAlertWithOk(
-						title: .localized("Success"),
-						message: .localized("Sources copied to clipboard")
-					) {
-						dismiss()
-					}
-				}
 				} footer: {
 					Text(.localized("Supports importing from KravaSign/MapleSign and ESign."))
 				}
