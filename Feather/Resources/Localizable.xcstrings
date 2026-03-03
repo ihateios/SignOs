@@ -6893,6 +6893,17 @@
         }
       }
     },
+    "Inject into Extensions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inject into Extensions"
+          }
+        }
+      }
+    },
     "Injection Folder" : {
       "extractionState" : "manual",
       "localizations" : {
