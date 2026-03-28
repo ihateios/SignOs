@@ -20,8 +20,11 @@ struct TunnelView: View {
 	var body: some View {
 		Group {
 			Section {
-				_tunnelInfo()
-				TunnelHeaderView()
+				if #available(iOS 17.4, *) {
+				} else {
+					_tunnelInfo()
+					TunnelHeaderView()
+				}
 			} footer: {
 				if doesHavePairingFile {
 					Text(.localized("Seems like you've gotten your hands on your pairing file!"))
@@ -34,16 +37,19 @@ struct TunnelView: View {
 				Button(.localized("Import Pairing File"), systemImage: "square.and.arrow.down") {
 					_isImportingPairingPresenting = true
 				}
-				Button(.localized("Restart Heartbeat"), systemImage: "arrow.counterclockwise") {
-					HeartbeatManager.shared.start(true)
-					
-					DispatchQueue.global(qos: .userInitiated).async {
-						if !HeartbeatManager.shared.checkSocketConnection().isConnected {
-							DispatchQueue.main.async {
-								UIAlertController.showAlertWithOk(
-									title: "Socket",
-									message: "Unable to connect to TCP. Make sure you have loopback VPN enabled and you are on WiFi or Airplane mode."
-								)
+				if #available(iOS 17.4, *) {
+				} else {
+					Button(.localized("Restart Heartbeat"), systemImage: "arrow.counterclockwise") {
+						HeartbeatManager.shared.start(true)
+						
+						DispatchQueue.global(qos: .userInitiated).async {
+							if !HeartbeatManager.shared.checkSocketConnection().isConnected {
+								DispatchQueue.main.async {
+									UIAlertController.showAlertWithOk(
+										title: "Socket",
+										message: "Unable to connect to TCP. Make sure you have loopback VPN enabled and you are on WiFi or Airplane mode."
+									)
+								}
 							}
 						}
 					}
@@ -54,7 +60,6 @@ struct TunnelView: View {
 				Button(.localized("Pairing File Guide"), systemImage: "questionmark.circle") {
 					UIApplication.open("https://github.com/khcrysalis/Impactor#pairing-file")
 				}
-				
 				if isLocalDevVpnAvailable {
 					Button(.localized("Connect to LocalDevVPN"), systemImage: "link") {
 						UIApplication.open("localdevvpn://enable?scheme=feather")
@@ -81,7 +86,6 @@ struct TunnelView: View {
 			doesHavePairingFile = FileManager.default.fileExists(atPath: HeartbeatManager.pairingFile())
 				? true
 				: false
-			
 			if let url = URL(string: "localdevvpn://") {
 				isLocalDevVpnAvailable = UIApplication.shared.canOpenURL(url)
 			} else {
