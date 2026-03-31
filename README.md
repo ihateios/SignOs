@@ -40,9 +40,9 @@ Visit the [HOW IT WORKS](./HOW_IT_WORKS.md) page.
 
 ## Sponsors
 
-| Thanks to all my [sponsors](https://github.com/sponsors/khcrysalis)!! |
+| Thanks to all my [sponsors](https://github.com/sponsors/claration)!! |
 |:-:|
-| <img src="https://raw.githubusercontent.com/khcrysalis/github-sponsor-graph/main/graph.png"> |
+| <img src="https://raw.githubusercontent.com/claration/github-sponsor-graph/main/graph.png"> |
 | _**"samara is cute" - Vendicated**_ |
 
 ## Star History
@@ -57,7 +57,7 @@ Visit the [HOW IT WORKS](./HOW_IT_WORKS.md) page.
 
 ## Acknowledgements
 
-- [Samara](https://github.com/khcrysalis) - The maker
+- [Samara](https://github.com/claration) - The maker
 - [idevice](https://github.com/jkcoxson/idevice) - Backend for builds with this included, used for communication with `installd`.
 - [*.backloop.dev](https://backloop.dev/) - localhost with public CA signed SSL certificate
 - [Vapor](https://github.com/vapor/vapor) - A server-side Swift HTTP web framework.

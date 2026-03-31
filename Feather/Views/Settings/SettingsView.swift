@@ -34,8 +34,8 @@ struct SettingsView: View {
 	}
 
     
-	private let _donationsUrl = "https://github.com/sponsors/khcrysalis"
-	private let _githubUrl = "https://github.com/khcrysalis/Feather"
+	private let _donationsUrl = "https://github.com/sponsors/claration"
+	private let _githubUrl = "https://github.com/claration/Feather"
     
 	// MARK: Body
 	var body: some View {
