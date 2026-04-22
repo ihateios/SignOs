@@ -1,0 +1,14 @@
+//
+//  default.xcconfig
+//  Ventrica
+//
+//  Created by samsam on 2/5/26.
+//
+
+FEATHER_PRODUCT_BUNDLE_IDENTIFIER=thewonderofyou.Feather
+FEATHER_DISAMBIGUATOR=${DEVELOPMENT_TEAM}
+
+AD_HOC_CODE_SIGNING_ALLOWED = YES
+
+DEPLOYMENT_LOCATION = YES
+DSTROOT = $(SRCROOT)/_build/

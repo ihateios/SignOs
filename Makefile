@@ -1,14 +1,13 @@
 NAME := Feather
-PLATFORM := iphoneos
-SCHEMES := Feather
+SCHEME := Feather
+PLATFORMS := iphoneos maccatalyst
+
 TMP := $(TMPDIR)/$(NAME)
-STAGE := $(TMP)/stage
-APP := $(TMP)/Build/Products/Release-$(PLATFORM)
 CERT_JSON_URL := https://backloop.dev/pack.json
 
-.PHONY: all deps clean $(SCHEMES)
+.PHONY: all clean deps $(PLATFORMS)
 
-all: $(SCHEMES)
+all: $(PLATFORMS)
 
 clean:
 	rm -rf $(TMP)
@@ -20,36 +19,33 @@ deps:
 	mkdir -p deps
 
 	curl -fsSL "$(CERT_JSON_URL)" -o cert.json
-
 	jq -r '.cert' cert.json > deps/server.crt
 	jq -r '.key1, .key2' cert.json > deps/server.pem
 	jq -r '.info.domains.commonName' cert.json > deps/commonName.txt
 
-$(SCHEMES): deps
+
+$(PLATFORMS): deps
+	rm -rf _build
+
 	xcodebuild \
-	    -project Feather.xcodeproj \
-	    -scheme "$@" \
-	    -configuration Release \
-	    -arch arm64 \
-	    -sdk $(PLATFORM) \
-	    -derivedDataPath $(TMP) \
-	    -skipPackagePluginValidation \
-	    CODE_SIGNING_ALLOWED=NO \
-	    ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES=NO
+		-project Feather.xcodeproj \
+		-scheme $(SCHEME) \
+		-configuration Release \
+		-sdk iphoneos \
+		-derivedDataPath $(TMP)/$@ \
+		CODE_SIGNING_ALLOWED=NO \
+		ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES=NO
 
-	rm -rf Payload
-	rm -rf $(STAGE)/
-	mkdir -p $(STAGE)/Payload
+	mkdir -p _build/Payload
+	cp -R _build/Applications/*.app _build/Payload/Feather.app
+	chmod -R 0755 _build/Payload/Feather.app
+	codesign --force --sign - --timestamp=none _build/Payload/Feather.app
+	cp deps/* _build/Payload/Feather.app/ || true
 
-	mv "$(APP)/$@.app" "$(STAGE)/Payload/$@.app"
-
-	chmod -R 0755 "$(STAGE)/Payload/$@.app"
-	codesign --force --sign - --timestamp=none "$(STAGE)/Payload/$@.app"
-
-	cp deps/* "$(STAGE)/Payload/$@.app/" || true
-
-	rm -rf "$(STAGE)/Payload/$@.app/_CodeSignature"
-	ln -sf "$(STAGE)/Payload" Payload
-	
 	mkdir -p packages
-	zip -r9 "packages/$@.ipa" Payload
+
+	@if [ "$@" = "iphoneos" ]; then \
+		ditto -c -k --sequesterRsrc --keepParent _build/Payload "packages/Feather.ipa"; \
+	else \
+		ditto -c -k --sequesterRsrc --keepParent _build/Payload/Feather.app "packages/Feather-maccatalyst.zip"; \
+	fi

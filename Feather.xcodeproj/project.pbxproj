@@ -20,11 +20,13 @@
 		336D43982DB7454A00206400 /* MobileCoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 336D43972DB7454A00206400 /* MobileCoreServices.framework */; };
 		3371F7322DA9ECDD00281AC6 /* Zip in Frameworks */ = {isa = PBXBuildFile; productRef = 3371F7312DA9ECDD00281AC6 /* Zip */; };
 		33CF13392DB5ACFB0021D4C5 /* SWCompression in Frameworks */ = {isa = PBXBuildFile; productRef = 33CF13382DB5ACFB0021D4C5 /* SWCompression */; };
+		570920BE2F98A4F0008C4A83 /* Feather.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 570920BD2F98A4F0008C4A83 /* Feather.xcconfig */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		336D43972DB7454A00206400 /* MobileCoreServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MobileCoreServices.framework; path = Platforms/AppleTVOS.platform/Developer/SDKs/AppleTVOS18.2.sdk/System/Library/Frameworks/MobileCoreServices.framework; sourceTree = DEVELOPER_DIR; };
 		3379C1B92DA869A1004372DA /* Feather.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Feather.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		570920BD2F98A4F0008C4A83 /* Feather.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Feather.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -98,6 +100,7 @@
 				3379C1BB2DA869A1004372DA /* Feather */,
 				3371F7302DA9ECDD00281AC6 /* Frameworks */,
 				3379C1BA2DA869A1004372DA /* Products */,
+				570920BD2F98A4F0008C4A83 /* Feather.xcconfig */,
 			);
 			sourceTree = "<group>";
 		};
@@ -209,6 +212,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				570920BE2F98A4F0008C4A83 /* Feather.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -251,6 +255,7 @@
 /* Begin XCBuildConfiguration section */
 		3379C1CB2DA869A3004372DA /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 570920BD2F98A4F0008C4A83 /* Feather.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -314,6 +319,7 @@
 		};
 		3379C1CC2DA869A3004372DA /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 570920BD2F98A4F0008C4A83 /* Feather.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -369,6 +375,7 @@
 		};
 		3379C1CE2DA869A3004372DA /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 570920BD2F98A4F0008C4A83 /* Feather.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
@@ -411,7 +418,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.2;
 				MARKETING_VERSION = 2.7.0;
-				PRODUCT_BUNDLE_IDENTIFIER = thewonderofyou.Feather;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(FEATHER_PRODUCT_BUNDLE_IDENTIFIER)$(FEATHER_DISAMBIGUATOR)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = auto;
@@ -433,6 +440,7 @@
 		};
 		3379C1CF2DA869A3004372DA /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 570920BD2F98A4F0008C4A83 /* Feather.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
@@ -474,7 +482,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.2;
 				MARKETING_VERSION = 2.7.0;
-				PRODUCT_BUNDLE_IDENTIFIER = thewonderofyou.Feather;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(FEATHER_PRODUCT_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = auto;

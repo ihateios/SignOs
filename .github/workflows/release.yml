@@ -38,7 +38,7 @@ jobs:
           name: Feather v${{ env.VERSION }}
           tag_name: v${{ env.VERSION }}
           files: |
-            upload/*ipa
+            upload/*
           generate_release_notes: true
           fail_on_unmatched_files: true
           draft: true
