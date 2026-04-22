@@ -27,11 +27,16 @@ deps:
 $(PLATFORMS): deps
 	rm -rf _build
 
+	@if [ "$@" = "iphoneos" ]; then \
+		DEST="generic/platform=iOS"; \
+	else \
+		DEST="generic/platform=macOS,variant=Mac Catalyst"; \
+	fi; \
 	xcodebuild \
 		-project Feather.xcodeproj \
 		-scheme $(SCHEME) \
 		-configuration Release \
-		-sdk iphoneos \
+		-destination "$$DEST" \
 		-derivedDataPath $(TMP)/$@ \
 		-skipPackagePluginValidation \
 		CODE_SIGNING_ALLOWED=NO \
@@ -48,5 +53,5 @@ $(PLATFORMS): deps
 	@if [ "$@" = "iphoneos" ]; then \
 		ditto -c -k --sequesterRsrc --keepParent _build/Payload "packages/Feather.ipa"; \
 	else \
-		ditto -c -k --sequesterRsrc --keepParent _build/Payload/Feather.app "packages/Feather-maccatalyst.zip"; \
+		ditto -c -k --sequesterRsrc --keepParent _build/Payload/Feather.app "packages/Feather_Catalyst.zip"; \
 	fi
