@@ -7,18 +7,41 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
+
+      - name: Dependencies
+        run: brew install jq
 
       - name: Update app-repo.json
         run: |
-          ./update-repo.sh
+          TAG="${{ github.event.release.tag_name }}"
+          DATE="${{ github.event.release.published_at }}"
+
+          VERSION="${TAG#v}"
+
+          DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/Feather.ipa"
+
+          jq \
+            --arg version "$VERSION" \
+            --arg date "$DATE" \
+            --arg url "$DOWNLOAD_URL" \
+            '
+            .apps[0].version = $version |
+            .apps[0].versionDate = $date |
+            .apps[0].downloadURL = $url |
+            .apps[0].versions[0].version = $version |
+            .apps[0].versions[0].date = $date |
+            .apps[0].versions[0].downloadURL = $url
+            ' app-repo.json > tmp.json
+
+          mv tmp.json app-repo.json
 
       - name: Commit changes
-        uses: EndBug/add-and-commit@v9
+        uses: EndBug/add-and-commit@v10
         with:
           default_author: github_actions
-          message: "chore: update repo"
+          message: "chore: update repo for ${{ github.event.release.tag_name }}"
           add: app-repo.json
           push: true
