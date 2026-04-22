@@ -10,16 +10,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: main
 
       - name: Dependencies
-        run: |
-          brew install jq
+        run: brew install jq
 
       - name: Update app-repo.json
         run: |
           TAG="${{ github.event.release.tag_name }}"
           DATE="${{ github.event.release.published_at }}"
-
           VERSION="${TAG#v}"
 
           DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/Feather.ipa"
@@ -44,11 +45,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git checkout main
-
           git add app-repo.json
 
-          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git diff --cached --quiet && echo "No changes" && exit 0
 
           git commit -m "chore: update repo for ${{ github.event.release.tag_name }}"
 
