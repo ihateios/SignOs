@@ -12,7 +12,8 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Dependencies
-        run: brew install jq
+        run: |
+          brew install jq
 
       - name: Update app-repo.json
         run: |
@@ -38,10 +39,17 @@ jobs:
 
           mv tmp.json app-repo.json
 
-      - name: Commit changes
-        uses: EndBug/add-and-commit@v10
-        with:
-          default_author: github_actions
-          message: "chore: update repo for ${{ github.event.release.tag_name }}"
-          add: app-repo.json
-          push: true
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout main
+
+          git add app-repo.json
+
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+
+          git commit -m "chore: update repo for ${{ github.event.release.tag_name }}"
+
+          git push origin main
