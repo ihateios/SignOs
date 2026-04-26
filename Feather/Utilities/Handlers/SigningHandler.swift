@@ -418,7 +418,7 @@ extension SigningHandler {
 	}
 	
 	private func _enumerateFiles(at base: URL, where predicate: (String) -> Bool) -> [URL] {
-		guard let fileEnum = _fileManager.enumerator(atPath: base.path()) else {
+		guard let fileEnum = _fileManager.enumerator(atPath: base.path) else {
 			return []
 		}
 		
