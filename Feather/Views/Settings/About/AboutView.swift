@@ -23,7 +23,7 @@ struct AboutView: View {
 	@State private var _credits: [CreditsModel] = [
 		.init(name: "C", desc: "Developer", github: "claration"),
 		.init(name: "Asami", desc: "Developer", github: "Nyasami"),
-		.init(name: "Lakhan Lothiyi", desc: "AltStore Repositories", github: "llsc"),
+		.init(name: "Lakhan Lothiyi", desc: "AltStore Repositories", github: "llsc12"),
 	]
 	
 	let pngURL = URL(string: "https://sponsors.claration.dev/sponsors.png")!
