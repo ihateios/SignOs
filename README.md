@@ -42,7 +42,7 @@ Visit the [HOW IT WORKS](./HOW_IT_WORKS.md) page.
 
 | Thanks to all my [sponsors](https://github.com/sponsors/claration)!! |
 |:-:|
-| <img src="https://raw.githubusercontent.com/claration/github-sponsor-graph/main/graph.png"> |
+| <img src="https://sponsors.claration.dev/sponsors.png"> |
 | _**"samara is cute" - Vendicated**_ |
 
 ## Star History
