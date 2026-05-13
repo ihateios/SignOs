@@ -20,98 +20,72 @@ extension AboutView {
 
 // MARK: - View
 struct AboutView: View {
-	typealias CreditsDataHandler = Result<[CreditsModel], Error>
-	private let _dataService = NBFetchService()
+	@State private var _credits: [CreditsModel] = [
+		.init(name: "C", desc: "Developer", github: "claration"),
+		.init(name: "Asami", desc: "Developer", github: "Nyasami"),
+		.init(name: "Lakhan Lothiyi", desc: "AltStore Repositories", github: "llsc"),
+	]
 	
-	@State private var _credits: [CreditsModel] = []
-	@State private var _donators: [CreditsModel] = []
-	@State var isLoading = true
-	
-	private let _creditsUrl = "https://raw.githubusercontent.com/khcrysalis/project-credits/refs/heads/main/feather/creditsv2.json"
-	private let _donatorsUrl = "https://raw.githubusercontent.com/khcrysalis/project-credits/refs/heads/main/sponsors/credits.json"
+	let pngURL = URL(string: "https://sponsors.claration.dev/sponsors.png")!
 	
 	// MARK: Body
 	var body: some View {
 		NBList(.localized("About")) {
-			if !isLoading {
-				Section {
-					VStack {
-						FRAppIconView(size: 72)
-						
-						Text(Bundle.main.exec)
-							.font(.largeTitle)
-							.bold()
-							.foregroundStyle(Color.accentColor)
-						
-						HStack(spacing: 4) {
-							Text(.localized("Version"))
-							Text(Bundle.main.version)
-						}
-						.font(.footnote)
-						.foregroundStyle(.secondary)
-					}
-				}
-				.frame(maxWidth: .infinity)
-				.listRowBackground(EmptyView())
-				
-				NBSection(.localized("Credits")) {
-					ForEach(_credits, id: \.github) { credit in
-						_credit(name: credit.name, desc: credit.desc, github: credit.github)
-					}
-					.transition(.slide)
-				}
-				
-				NBSection(.localized("Sponsors")) {
-					Text(try! AttributedString(markdown: _donators.map {
-						"[\($0.name ?? $0.github)](https://github.com/\($0.github))"
-					}.joined(separator: ", ")))
-						.transition(.slide)
+			Section {
+				VStack {
+					FRAppIconView(size: 72)
 					
-					Text(.localized("💜 This couldn't of been done without my sponsors!"))
-						.foregroundStyle(.secondary)
-						.padding(.vertical, 2)
+					Text(Bundle.main.exec)
+						.font(.largeTitle)
+						.bold()
+						.foregroundStyle(Color.accentColor)
+					
+					HStack(spacing: 4) {
+						Text(.localized("Version"))
+						Text(Bundle.main.version)
+					}
+					.font(.footnote)
+					.foregroundStyle(.secondary)
 				}
 			}
-		}
-		.animation(.default, value: isLoading)
-		.task {
-			await _fetchAllData()
-		}
-	}
-	
-	private func _fetchAllData() async {
-		await withTaskGroup(of: (String, CreditsDataHandler).self) { group in
-			group.addTask { return await _fetchCredits(self._creditsUrl, using: _dataService) }
-			group.addTask { return await _fetchCredits(self._donatorsUrl, using: _dataService) }
+			.frame(maxWidth: .infinity)
+			.listRowBackground(EmptyView())
 			
-			for await (type, result) in group {
-				await MainActor.run {
-					switch result {
-					case .success(let data):
-						if type == "credits" {
-							self._credits = data
-						} else {
-							self._donators = data
-						}
-					case .failure(_): break
+			NBSection(.localized("Credits")) {
+				ForEach(_credits, id: \.github) { credit in
+					_credit(name: credit.name, desc: credit.desc, github: credit.github)
+				}
+				.transition(.slide)
+			}
+			
+			NBSection(.localized("Sponsors")) {
+				Text(.localized("💜 This couldn't of been done without my sponsors!"))
+					.foregroundStyle(.secondary)
+					.padding(.vertical, 2)
+				AsyncImage(url: pngURL) { phase in
+					switch phase {
+					case .empty:
+						ProgressView()
+							.frame(maxWidth: .infinity)
+							.frame(height: 120)
+					case .success(let image):
+						image
+							.resizable()
+							.scaledToFit()
+							.frame(maxWidth: .infinity)
+							.listRowInsets(EdgeInsets())
+					case .failure:
+						Image(systemName: "photo")
+							.resizable()
+							.scaledToFit()
+							.frame(maxWidth: .infinity)
+							.foregroundColor(.gray)
+							.frame(height: 120)
+						
+					@unknown default:
+						EmptyView()
 					}
 				}
-			}
-		}
-		
-		await MainActor.run {
-			isLoading = false
-		}
-	}
-	
-	private func _fetchCredits(_ urlString: String, using service: NBFetchService) async -> (String, CreditsDataHandler) {
-		let type = urlString == _creditsUrl 
-			? "credits"
-			: "donators"
-		
-		return await withCheckedContinuation { continuation in
-			service.fetch(from: urlString) { (result: CreditsDataHandler) in
-				continuation.resume(returning: (type, result))
 			}
 		}
 	}
