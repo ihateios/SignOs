@@ -11,6 +11,8 @@ import AltSourceKit
 import NimbleViews
 
 struct DownloadButtonView: View {
+	let sourceURL: URL?
+	let source: ASRepository?
 	let app: ASRepository.App
 	@ObservedObject private var downloadManager = DownloadManager.shared
 
@@ -41,7 +43,11 @@ struct DownloadButtonView: View {
 			} else {
 				Button {
 					if let url = app.currentDownloadUrl {
-						_ = downloadManager.startDownload(from: url, id: app.currentUniqueId)
+						_ = downloadManager.startDownload(
+							from: url,
+							id: app.currentUniqueId,
+							sourceProvenance: _sourceProvenance()
+						)
 					}
 				} label: {
 					Text(.localized("Get"))
@@ -81,5 +87,10 @@ struct DownloadButtonView: View {
 		cancellable = publisher.sink { _, _ in
 			downloadProgress = download.overallProgress
 		}
+	}
+	
+	private func _sourceProvenance() -> SourceAppProvenance? {
+		guard let source else { return nil }
+		return SourceAppProvenance(sourceURL: sourceURL, repository: source, app: app)
 	}
 }

@@ -156,6 +156,7 @@ final class SigningHandler: NSObject {
 			
 			Storage.shared.addSigned(
 				uuid: _uuid,
+				source: _app.source,
 				certificate: _options.signingOption != .default ? nil : appCertificate,
 				appName: bundle?.name,
 				appIdentifier: bundle?.bundleIdentifier,
@@ -166,6 +167,12 @@ final class SigningHandler: NSObject {
 				continuation.resume()
 			}
 		}
+		
+		Storage.shared.copySourceMetadata(
+			from: _app.uuid,
+			to: _uuid,
+			kind: .signed
+		)
 	}
 	
 	private func _directory() async throws -> URL {

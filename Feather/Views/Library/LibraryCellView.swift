@@ -13,6 +13,9 @@ import NimbleViews
 struct LibraryCellView: View {
 	@Environment(\.horizontalSizeClass) private var horizontalSizeClass
 	@Environment(\.editMode) private var editMode
+	@ObservedObject private var updateManager = UpdateManager.shared
+	@State private var _signedUpdateConfirmation: AppUpdate?
+	@State private var _isSignedUpdateConfirmationPresented = false
 
 	var certInfo: Date.ExpirationInfo? {
 		Storage.shared.getCertificate(from: app)?.expiration?.expirationInfo()
@@ -60,7 +63,7 @@ struct LibraryCellView: View {
 				.buttonStyle(.borderless)
 			}
 			
-			FRAppIconView(app: app, size: 57)
+			_appIcon(for: app)
 			
 			NBTitleWithSubtitleView(
 				title: app.name ?? .localized("Unknown"),
@@ -99,6 +102,25 @@ struct LibraryCellView: View {
 				_actions(for: app)
 			}
 		}
+		.confirmationDialog(
+			.localized("Update Available"),
+			isPresented: $_isSignedUpdateConfirmationPresented,
+			titleVisibility: .visible
+		) {
+			Button(.localized("Install Current Version"), systemImage: "square.and.arrow.down") {
+				selectedInstallAppPresenting = AnyApp(base: app)
+			}
+			if let update = _signedUpdateConfirmation {
+				Button(.localized("Download Update"), systemImage: "arrow.down.circle") {
+					_startUpdateDownload(update)
+				}
+			}
+			Button(.localized("Cancel"), role: .cancel) {}
+		} message: {
+			if let update = _signedUpdateConfirmation {
+				Text("\(update.appName) \(update.remoteVersion)")
+			}
+		}
 	}
 	
 	private var _desc: String {
@@ -113,6 +135,25 @@ struct LibraryCellView: View {
 
 // MARK: - Extension: View
 extension LibraryCellView {
+	private func _appIcon(for app: AppInfoPresentable) -> some View {
+		FRAppIconView(app: app, size: 57)
+			.overlay(alignment: .topTrailing) {
+				if updateManager.update(for: app) != nil {
+					Image(systemName: "arrow.down.circle.fill")
+						.font(.system(size: 18, weight: .semibold))
+						.symbolRenderingMode(.palette)
+						.foregroundStyle(.white, Color.accentColor)
+						.background(
+							Circle()
+								.fill(Color(.systemBackground))
+								.frame(width: 20, height: 20)
+						)
+						.offset(x: 5, y: -5)
+						.accessibilityLabel(.localized("Update Available"))
+				}
+			}
+	}
+	
 	@ViewBuilder
 	private func _actions(for app: AppInfoPresentable) -> some View {
 		Button(.localized("Delete"), systemImage: "trash", role: .destructive) {
@@ -129,6 +170,17 @@ extension LibraryCellView {
 	
 	@ViewBuilder
 	private func _contextActionsExtra(for app: AppInfoPresentable) -> some View {
+		if let update = updateManager.update(for: app) {
+			Button(.localized("Update"), systemImage: "arrow.down.circle") {
+				if app.isSigned {
+					_signedUpdateConfirmation = update
+					_isSignedUpdateConfirmationPresented = true
+				} else {
+					_startUpdateDownload(update)
+				}
+			}
+		}
+		
 		if app.isSigned {
 			if let id = app.identifier {
 				Button(.localized("Open"), systemImage: "app.badge.checkmark") {
@@ -157,7 +209,30 @@ extension LibraryCellView {
 	@ViewBuilder
 	private func _buttonActions(for app: AppInfoPresentable) -> some View {
 		Group {
-			if app.isSigned {
+			if let update = updateManager.update(for: app) {
+				if app.isSigned {
+					Button {
+						_signedUpdateConfirmation = update
+						_isSignedUpdateConfirmationPresented = true
+					} label: {
+						FRExpirationPillView(
+							title: .localized("Install"),
+							revoked: certRevoked,
+							expiration: certInfo
+						)
+					}
+				} else {
+					Button {
+						_startUpdateDownload(update)
+					} label: {
+						FRExpirationPillView(
+							title: .localized("Update"),
+							revoked: false,
+							expiration: nil
+						)
+					}
+				}
+			} else if app.isSigned {
 				Button {
 					selectedInstallAppPresenting = AnyApp(base: app)
 				} label: {
@@ -180,5 +255,13 @@ extension LibraryCellView {
 			}
 		}
 		.buttonStyle(.borderless)
+	}
+	
+	private func _startUpdateDownload(_ update: AppUpdate) {
+		_ = DownloadManager.shared.startDownload(
+			from: update.downloadURL,
+			id: "FeatherManualDownload_Update_\(update.localUUID)",
+			sourceProvenance: update.sourceProvenance
+		)
 	}
 }

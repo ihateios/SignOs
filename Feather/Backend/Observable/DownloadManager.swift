@@ -29,15 +29,18 @@ class Download: Identifiable, @unchecked Sendable {
 	let url: URL
 	let fileName: String
 	let onlyArchiving: Bool
+	var sourceProvenance: SourceAppProvenance?
 	
 	init(
 		id: String,
 		url: URL,
-		onlyArchiving: Bool = false
+		onlyArchiving: Bool = false,
+		sourceProvenance: SourceAppProvenance? = nil
 	) {
 		self.id = id
 		self.url = url
 		self.onlyArchiving = onlyArchiving
+		self.sourceProvenance = sourceProvenance
 		self.fileName = url.lastPathComponent
 	}
 }
@@ -73,14 +76,18 @@ class DownloadManager: NSObject, ObservableObject {
 	
 	func startDownload(
 		from url: URL,
-		id: String = UUID().uuidString
+		id: String = UUID().uuidString,
+		sourceProvenance: SourceAppProvenance? = nil
 	) -> Download {
-		if let existingDownload = downloads.first(where: { $0.url == url }) {
+		let requestHasSourceProvenance = sourceProvenance != nil
+		if let existingDownload = downloads.first(where: {
+			$0.url == url && ($0.sourceProvenance != nil) == requestHasSourceProvenance
+		}) {
 			resumeDownload(existingDownload)
 			return existingDownload
 		}
 		
-		let download = Download(id: id, url: url)
+		let download = Download(id: id, url: url, sourceProvenance: sourceProvenance)
 		
 		let task = _session.downloadTask(with: url)
 		download.task = task

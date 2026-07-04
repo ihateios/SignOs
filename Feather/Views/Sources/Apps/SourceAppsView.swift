@@ -49,17 +49,17 @@ struct SourceAppsView: View {
 	
 	var object: [AltSource]
 	@ObservedObject var viewModel: SourcesViewModel
-	@State private var _sources: [ASRepository]?
+	@State private var _sourceContexts: [SourceRepositoryContext]?
 	
 	// MARK: Body
 	var body: some View {
 		ZStack {
 			if
-				let _sources,
-				!_sources.isEmpty
+				let _sourceContexts,
+				!_sourceContexts.isEmpty
 			{
 				SourceAppsTableRepresentableView(
-					sources: _sources,
+					sourceContexts: _sourceContexts,
 					searchText: $_searchText,
 					sortOption: $_sortOption,
 					sortAscending: $_sortAscending,
@@ -74,16 +74,16 @@ struct SourceAppsView: View {
 		.searchable(text: $_searchText, placement: .platform())
 		.toolbarTitleMenu {
 			if
-				let _sources,
-				_sources.count == 1
+				let _sourceContexts,
+				_sourceContexts.count == 1
 			{
-				if let url = _sources[0].website {
+				if let url = _sourceContexts[0].repository.website {
 					Button(.localized("Visit Website"), systemImage: "globe") {
 						UIApplication.open(url)
 					}
 				}
 				
-				if let url = _sources[0].patreonURL {
+				if let url = _sourceContexts[0].repository.patreonURL {
 					Button(.localized("Visit Patreon"), systemImage: "dollarsign.circle") {
 						UIApplication.open(url)
 					}
@@ -132,7 +132,11 @@ struct SourceAppsView: View {
 			_sortOptionRawValue = newValue.rawValue
 		}
 		.navigationDestinationIfAvailable(item: $_selectedRoute) { route in
-			SourceAppsDetailView(source: route.source, app: route.app)
+			SourceAppsDetailView(
+				sourceURL: route.sourceURL,
+				source: route.source,
+				app: route.app
+			)
 		}
 	}
 	
@@ -140,15 +144,32 @@ struct SourceAppsView: View {
 		isLoading = true
 		
 		Task {
-			let loadedSources = object.compactMap { viewModel.sources[$0] }
-			_sources = loadedSources
+			let loadedSources = object.compactMap { source -> SourceRepositoryContext? in
+				guard let repository = viewModel.sources[source] else { return nil }
+				return SourceRepositoryContext(sourceURL: source.sourceURL, repository: repository)
+			}
+			_sourceContexts = loadedSources
 			withAnimation(.easeIn(duration: 0.2)) {
 				isLoading = false
 			}
 		}
 	}
 	
+	struct SourceRepositoryContext: Equatable {
+		let sourceURL: URL?
+		let repository: ASRepository
+		
+		static func == (lhs: SourceRepositoryContext, rhs: SourceRepositoryContext) -> Bool {
+			lhs.sourceURL == rhs.sourceURL &&
+			lhs.repository.id == rhs.repository.id &&
+			lhs.repository.name == rhs.repository.name &&
+			lhs.repository.apps.map { "\($0.currentUniqueId)|\($0.currentVersion ?? "")" } ==
+			rhs.repository.apps.map { "\($0.currentUniqueId)|\($0.currentVersion ?? "")" }
+		}
+	}
+	
 	struct SourceAppRoute: Identifiable, Hashable {
+		let sourceURL: URL?
 		let source: ASRepository
 		let app: ASRepository.App
 		let id: String = UUID().uuidString

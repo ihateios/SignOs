@@ -8,7 +8,6 @@
 import Foundation
 import Zip
 import SwiftUI
-import OSLog
 
 final class AppFileHandler: NSObject, @unchecked Sendable {
 	private let _fileManager = FileManager.default
@@ -19,20 +18,22 @@ final class AppFileHandler: NSObject, @unchecked Sendable {
 	private var _ipa: URL
 	private let _install: Bool
 	private let _download: Download?
+	private let _sourceProvenance: SourceAppProvenance?
 	
 	init(
 		file ipa: URL,
 		install: Bool = false,
-		download: Download? = nil
+		download: Download? = nil,
+		sourceProvenance: SourceAppProvenance? = nil
 	) {
 		self._ipa = ipa
 		self._install = install
 		self._download = download
+		self._sourceProvenance = sourceProvenance ?? download?.sourceProvenance
 		self._uniqueWorkDir = _fileManager.temporaryDirectory
 			.appendingPathComponent("FeatherImport_\(_uuid)", isDirectory: true)
 		
 		super.init()
-		Logger.misc.debug("Import initiated for: \(self._ipa.lastPathComponent) with ID: \(self._uuid)")
 	}
 	
 	func copy() async throws {
@@ -44,7 +45,6 @@ final class AppFileHandler: NSObject, @unchecked Sendable {
 		
 		try _fileManager.copyItem(at: _ipa, to: destinationURL)
 		_ipa = destinationURL
-		Logger.misc.info("[\(self._uuid)] File copied to: \(self._ipa.path)")
 	}
 	
 	func extract() async throws {
@@ -101,7 +101,6 @@ final class AppFileHandler: NSObject, @unchecked Sendable {
 		}
 		
 		try _fileManager.moveItem(at: payloadURL, to: destinationURL)
-		Logger.misc.info("[\(self._uuid)] Moved Payload to: \(destinationURL.path)")
 		
 		try? _fileManager.removeItem(at: _uniqueWorkDir)
 	}
@@ -117,12 +116,19 @@ final class AppFileHandler: NSObject, @unchecked Sendable {
 		
 		Storage.shared.addImported(
 			uuid: _uuid,
+			source: _sourceProvenance?.sourceRepositoryURL,
 			appName: bundle?.name,
 			appIdentifier: bundle?.bundleIdentifier,
 			appVersion: bundle?.version,
 			appIcon: bundle?.iconFileName
-		) { _ in
-			Logger.misc.info("[\(self._uuid)] Added to database")
+		) { _ in }
+		
+		if let sourceProvenance = _sourceProvenance {
+			Storage.shared.addSourceMetadata(
+				for: _uuid,
+				kind: .imported,
+				provenance: sourceProvenance
+			)
 		}
 	}
 	

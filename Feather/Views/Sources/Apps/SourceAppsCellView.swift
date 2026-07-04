@@ -15,8 +15,9 @@ import NukeUI
 struct SourceAppsCellView: View {
 	@AppStorage("Feather.storeCellAppearance") private var _storeCellAppearance: Int = 0
 	
-	var source: ASRepository
-	var app: ASRepository.App
+	let sourceURL: URL?
+	let source: ASRepository
+	let app: ASRepository.App
 	
 	var body: some View {
 		VStack {
@@ -37,7 +38,7 @@ struct SourceAppsCellView: View {
 						}
 					}
 				}
-				DownloadButtonView(app: app)
+				DownloadButtonView(sourceURL: sourceURL, source: source, app: app)
 			}
 			
 			if

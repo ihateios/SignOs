@@ -23,8 +23,9 @@ struct SourceAppsDetailView: View {
 		downloadManager.getDownload(by: app.currentUniqueId)
 	}
 	
-	var source: ASRepository
-	var app: ASRepository.App
+	let sourceURL: URL?
+	let source: ASRepository
+	let app: ASRepository.App
 	
 	var body: some View {
 		ScrollView {
@@ -57,7 +58,7 @@ struct SourceAppsDetailView: View {
 						
 						Spacer()
 						
-						DownloadButtonView(app: app)
+						DownloadButtonView(sourceURL: sourceURL, source: source, app: app)
 					}
 					.lineLimit(2)
 					.frame(maxWidth: .infinity, alignment: .leading)
@@ -87,7 +88,12 @@ struct SourceAppsDetailView: View {
 						)
 						if let versions = app.versions {
 							NavigationLink(
-								destination: VersionHistoryView(app: app, versions: versions)
+								destination: VersionHistoryView(
+									sourceURL: sourceURL,
+									source: source,
+									app: app,
+									versions: versions
+								)
 									.navigationTitle(.localized("Version History"))
 									.navigationBarTitleDisplayMode(.large)
 							) {

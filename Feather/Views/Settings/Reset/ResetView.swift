@@ -172,11 +172,13 @@ extension ResetView {
 	}
 	
 	static func deleteSignedApps() {
+		Storage.shared.deleteSourceMetadata(kind: .signed)
 		Storage.shared.clearContext(request: Signed.fetchRequest())
 		try? FileManager.default.removeFileIfNeeded(at: FileManager.default.signed)
 	}
 	
 	static func deleteImportedApps() {
+		Storage.shared.deleteSourceMetadata(kind: .imported)
 		Storage.shared.clearContext(request: Imported.fetchRequest())
 		try? FileManager.default.removeFileIfNeeded(at: FileManager.default.unsigned)
 	}
