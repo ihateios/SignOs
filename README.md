@@ -45,16 +45,6 @@ Visit the [HOW IT WORKS](./HOW_IT_WORKS.md) page.
 | <img src="https://sponsors.claration.dev/sponsors.png"> |
 | _**"samara is cute" - Vendicated**_ |
 
-## Star History
-
-<a href="https://star-history.com/#claration/Feather&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=claration/Feather&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=claration/Feather&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=claration/Feather&type=Date" />
- </picture>
-</a>
-
 ## Acknowledgements
 
 - [Samara](https://github.com/claration) - The maker
