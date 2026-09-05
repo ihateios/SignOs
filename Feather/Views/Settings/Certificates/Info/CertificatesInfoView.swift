@@ -21,11 +21,11 @@ struct CertificatesInfoView: View {
 		NBNavigationView(cert.nickname ?? "", displayMode: .inline) {
 			Form {
 				Section {} header: {
-					Image("Cert")
-						.resizable()
-						.scaledToFit()
-						.frame(width: 107, height: 107)
+					Image(systemName: "checkmark.seal.fill")
+						.font(.system(size: 56, weight: .regular))
+						.foregroundStyle(.tint)
 						.frame(maxWidth: .infinity, alignment: .center)
+						.padding(.bottom, 8)
 				}
 				
 				if let data {

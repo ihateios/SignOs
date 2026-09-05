@@ -60,7 +60,7 @@ extension SettingsView {
 					VStack(alignment: .leading, spacing: 3) {
 						Text("SignOs")
 							.font(.title2.weight(.bold))
-						Text(verbatim: "by @ihateios")
+						Text(verbatim: "Made By @ihateios")
 							.font(.subheadline)
 							.foregroundStyle(.secondary)
 					}
@@ -116,18 +116,6 @@ extension SettingsView {
 				Label(.localized("Keep Apps Signed"), systemImage: "checkmark.seal")
 			}
 
-			Picker(selection: Binding(
-				get: { autoUpdateManager.renewThresholdDays },
-				set: { autoUpdateManager.renewThresholdDays = $0 }
-			)) {
-				Text(.localized("1 Day Before")).tag(1)
-				Text(.localized("2 Days Before")).tag(2)
-				Text(.localized("3 Days Before")).tag(3)
-				Text(.localized("5 Days Before")).tag(5)
-			} label: {
-				Label(.localized("Renew Ahead"), systemImage: "calendar.badge.clock")
-			}
-
 			Toggle(isOn: $_autoDeleteOldVersions) {
 				Label(.localized("Replace Old Versions"), systemImage: "arrow.3.trianglepath")
 			}
@@ -141,7 +129,7 @@ extension SettingsView {
 		} header: {
 			Text(.localized("Automation"))
 		} footer: {
-			Text(.localized("SignOs checks your repositories, silently downloads, signs and prepares updates, and re-signs apps before their certificate expires. Installations via a paired device are applied without any interaction."))
+			Text(.localized("SignOs checks your repositories, silently downloads and signs updates, and keeps your apps working in the background. With a paired device, installs happen with no interaction at all."))
 		}
 	}
 
@@ -161,7 +149,7 @@ extension SettingsView {
 			}
 
 		} footer: {
-			Text(.localized("Add and manage certificates used for signing applications."))
+			Text(.localized("Certificates used for signing apps."))
 		}
 	}
 
@@ -178,7 +166,7 @@ extension SettingsView {
 				Label(.localized("Installation"), systemImage: "arrow.down.circle")
 			}
 		} footer: {
-			Text(.localized("Configure the apps way of installing, its zip compression levels, and custom modifications to apps."))
+			Text(.localized("Fine-tune how apps are installed, compressed and modified."))
 		}
 
 		NBSection(.localized("Appearance")) {
@@ -201,7 +189,7 @@ extension SettingsView {
 				UIApplication.open(FileManager.default.certificates.toSharedDocumentsURL()!)
 			}
 		} footer: {
-			Text(.localized("All of the apps files are contained in the documents directory, here are some quick links to these."))
+			Text(.localized("Quick links to the app's files on disk."))
 		}
 	}
 
@@ -212,7 +200,7 @@ extension SettingsView {
 				Label(.localized("Reset"), systemImage: "trash")
 			}
 		} footer: {
-			Text(.localized("Reset the applications sources, certificates, apps, and general contents."))
+			Text(.localized("Remove all sources, certificates and apps."))
 		}
 	}
 }

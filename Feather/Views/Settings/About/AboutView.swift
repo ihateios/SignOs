@@ -69,7 +69,7 @@ struct AboutView: View {
 							title: "@ihateios",
 							subtitle: _handleCopied
 								? .localized("Copied to Clipboard")
-								: .localized("Crafted by @ihateios — tap to copy")
+								: .localized("Made By @ihateios — tap to copy")
 						)
 
 						Spacer()
@@ -89,7 +89,7 @@ struct AboutView: View {
 					_credit(name: credit.name, desc: credit.desc, github: credit.github)
 				}
 			} footer: {
-				Text(.localized("SignOs is built on the open-source Feather project. Thank you to its developers."))
+				Text(.localized("Thank you to the Feather team — SignOs is built on their open-source work."))
 			}
 		}
 	}

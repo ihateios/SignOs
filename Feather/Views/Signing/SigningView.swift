@@ -80,10 +80,8 @@ struct SigningView: View {
 			.toolbar {
 				NBToolbarButton(role: .dismiss)
 				ToolbarItem(placement: .principal) {
-					Image("Glyph")
-						.resizable()
-						.scaledToFit()
-						.frame(height: 38)
+					Label(.localized("Signing"), systemImage: "signature")
+						.font(.headline)
 				}
 				NBToolbarButton(
 					.localized("Reset"),

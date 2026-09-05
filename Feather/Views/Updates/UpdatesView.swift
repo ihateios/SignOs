@@ -75,7 +75,7 @@ struct UpdatesView: View {
 			)) {
 				NBTitleWithSubtitleView(
 					title: .localized("Keep Apps Signed"),
-					subtitle: .localized("Re-sign apps automatically before their certificate expires")
+					subtitle: .localized("Renews your apps automatically in the background")
 				)
 			}
 			.tint(.accentColor)
@@ -103,7 +103,7 @@ struct UpdatesView: View {
 				}
 			}
 		} footer: {
-			Text(.localized("Updates are signed with the app's existing certificate when it is still valid, so app data is preserved."))
+			Text(.localized("Updates are prepared in the background. Your app data is always preserved."))
 		}
 	}
 
@@ -332,7 +332,7 @@ struct UpdatesView: View {
 		switch reason {
 		case .autoSign: return .localized("Auto-Signed")
 		case .autoUpdate: return .localized("Automatic Update")
-		case .renewal: return .localized("Certificate Renewal")
+		case .renewal: return .localized("Kept Signed")
 		}
 	}
 

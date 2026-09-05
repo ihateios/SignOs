@@ -39,7 +39,14 @@ struct SourcesView: View {
 						} label: {
 							let isRegular = horizontalSizeClass != .compact
 							HStack(spacing: 18) {
-								Image("Repositories").appIconStyle()
+								Image(systemName: "square.grid.2x2.fill")
+									.font(.system(size: 24, weight: .medium))
+									.foregroundStyle(.white)
+									.frame(width: 57, height: 57)
+									.background(
+										RoundedRectangle(cornerRadius: 12.5, style: .continuous)
+											.fill(Color.accentColor)
+									)
 								NBTitleWithSubtitleView(
 									title: .localized("All Repositories"),
 									subtitle: .localized("See all apps from your sources")

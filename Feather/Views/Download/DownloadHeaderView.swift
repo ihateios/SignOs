@@ -11,7 +11,7 @@ import NimbleExtensions
 
 struct DownloadHeaderView: View {
 	@ObservedObject var downloadManager: DownloadManager
-	
+
 	var body: some View {
 		ZStack {
 			if !downloadManager.manualDownloads.isEmpty {
@@ -19,20 +19,29 @@ struct DownloadHeaderView: View {
 					VStack(spacing: 12) {
 						if let firstDownload = downloadManager.manualDownloads.first {
 							DownloadItemView(download: firstDownload)
-							
+
 							if downloadManager.manualDownloads.count > 1 {
 								HStack {
 									Spacer()
 									Text(verbatim: "+\(downloadManager.manualDownloads.count - 1)")
-										.font(.caption)
-										.foregroundColor(.secondary)
-										.padding(.vertical, 4)
+										.font(.caption.weight(.semibold))
+										.foregroundStyle(.secondary)
 								}
 							}
 						}
 					}
-					.padding(.horizontal)
+					.padding(.horizontal, 16)
+					.padding(.vertical, 6)
 				}
+				.background {
+					ZStack {
+						RoundedRectangle(cornerRadius: 22, style: .continuous)
+							.fill(.regularMaterial)
+						RoundedRectangle(cornerRadius: 22, style: .continuous)
+							.strokeBorder(.quaternary, lineWidth: 0.5)
+					}
+				}
+				.padding(.horizontal, 12)
 				.transition(.move(edge: .top).combined(with: .opacity))
 			}
 		}
@@ -46,35 +55,43 @@ struct DownloadItemView: View {
 	@State private var bytesDownloaded: Int64 = 0
 	@State private var totalBytes: Int64 = 0
 	@State private var unpackageProgress: Double = 0
-	
+
 	var body: some View {
-		VStack(alignment: .leading, spacing: 4) {
-			Text(download.fileName)
-				.font(.subheadline)
-				.lineLimit(1)
-			
+		VStack(alignment: .leading, spacing: 6) {
+			HStack(spacing: 10) {
+				Image(systemName: "arrow.down.circle.fill")
+					.font(.title3)
+					.foregroundStyle(.tint)
+					.symbolRenderingMode(.hierarchical)
+
+				Text(download.fileName)
+					.font(.footnote.weight(.semibold))
+					.lineLimit(1)
+
+				Spacer()
+
+				Text(verbatim: "\(Int(overallProgress * 100))%")
+					.font(.caption.weight(.semibold).monospacedDigit())
+					.foregroundStyle(.secondary)
+					.contentTransition(.numericText())
+			}
+
 			ProgressView(value: overallProgress)
 				.progressViewStyle(.linear)
-			
-			HStack {
-				Text(verbatim: "\(Int(overallProgress * 100))%")
-					.contentTransition(.numericText())
-				Spacer()
-				if totalBytes > 0 {
-					Text(verbatim: "\($bytesDownloaded.wrappedValue.formattedByteCount) / \(totalBytes.formattedByteCount)")
-						.contentTransition(.numericText())
-				}
+				.tint(.accentColor)
+
+			if totalBytes > 0 {
+				Text(verbatim: "\($bytesDownloaded.wrappedValue.formattedByteCount) of \(totalBytes.formattedByteCount)")
+					.font(.caption2)
+					.foregroundStyle(.tertiary)
 			}
-			.font(.caption)
-			.foregroundColor(.secondary)
 		}
-		.padding(.vertical, 4)
 		.onReceive(download.$progress) { self.progress = $0 }
 		.onReceive(download.$bytesDownloaded) { self.bytesDownloaded = $0 }
 		.onReceive(download.$totalBytes) { self.totalBytes = $0 }
 		.onReceive(download.$unpackageProgress) { self.unpackageProgress = $0 }
 	}
-	
+
 	private var overallProgress: Double {
 		download.onlyArchiving
 			? unpackageProgress

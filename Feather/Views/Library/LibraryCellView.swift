@@ -17,14 +17,6 @@ struct LibraryCellView: View {
 	@State private var _signedUpdateConfirmation: AppUpdate?
 	@State private var _isSignedUpdateConfirmationPresented = false
 
-	var certInfo: Date.ExpirationInfo? {
-		Storage.shared.getCertificate(from: app)?.expiration?.expirationInfo()
-	}
-	
-	var certRevoked: Bool {
-		Storage.shared.getCertificate(from: app)?.revoked == true
-	}
-	
 	var app: AppInfoPresentable
 	@Binding var selectedInfoAppPresenting: AnyApp?
 	@Binding var selectedSigningAppPresenting: AnyApp?
@@ -216,9 +208,9 @@ extension LibraryCellView {
 						_isSignedUpdateConfirmationPresented = true
 					} label: {
 						FRExpirationPillView(
-							title: .localized("Install"),
-							revoked: certRevoked,
-							expiration: certInfo
+							title: .localized("Open"),
+							revoked: false,
+							expiration: nil
 						)
 					}
 				} else {
@@ -237,9 +229,9 @@ extension LibraryCellView {
 					selectedInstallAppPresenting = AnyApp(base: app)
 				} label: {
 					FRExpirationPillView(
-						title: .localized("Install"),
-						revoked: certRevoked,
-						expiration: certInfo
+						title: .localized("Open"),
+						revoked: false,
+						expiration: nil
 					)
 				}
 			} else {

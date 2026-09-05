@@ -6,7 +6,7 @@
 
 **An on-device signing store with App Store-style automatic updates.**
 
-crafted by **@ihateios**
+Made By **@ihateios**
 
 </div>
 
