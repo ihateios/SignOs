@@ -159,19 +159,6 @@ final class AutoSignManager: ObservableObject {
 		}
 
 		await _attemptSilentInstall(newest)
-
-		let verb: String
-		switch job.reason {
-		case .autoSign: verb = "Signed"
-		case .autoUpdate: verb = "Updated"
-		case .renewal: verb = "Renewed"
-		}
-
-		AutoUpdateManager.shared.notify(
-			title: "\(verb) \(newest.name ?? identifier)",
-			body: "Ready to install. Open SignOs to install it.",
-			identifier: "signos.sign.done.\(newest.uuid ?? job.appUUID)"
-		)
 	}
 
 	// MARK: - Install
@@ -185,6 +172,9 @@ final class AutoSignManager: ObservableObject {
 		let method = UserDefaults.standard.integer(forKey: "Feather.installationMethod")
 		guard method == 0 || method == 1 else { return }
 
+		ArchiveHandler.fastestCompressionOverride = true
+		defer { ArchiveHandler.fastestCompressionOverride = false }
+
 		do {
 			if method == 1 {
 				let viewModel = InstallerStatusViewModel(isIdevice: true)
@@ -194,11 +184,22 @@ final class AutoSignManager: ObservableObject {
 
 				let proxy = InstallationProxy(viewModel: viewModel)
 				try await proxy.install(at: packageUrl, suspend: false)
+
+				AutoUpdateManager.shared.notify(
+					title: "Installed \(app.name ?? "App")",
+					body: "The app is ready on your home screen.",
+					identifier: "signos.installed.\(app.uuid ?? UUID().uuidString)"
+				)
 			} else {
 				try await _serverInstall(app)
 			}
 		} catch {
 			lastErrorMessage = error.localizedDescription
+			AutoUpdateManager.shared.notify(
+				title: "Couldn't Install \(app.name ?? "App")",
+				body: "Open SignOs to try again.",
+				identifier: "signos.failed.\(app.uuid ?? UUID().uuidString)"
+			)
 		}
 	}
 

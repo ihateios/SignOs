@@ -129,7 +129,7 @@ extension SettingsView {
 		} header: {
 			Text(.localized("Automation"))
 		} footer: {
-			Text(.localized("SignOs checks your repositories, silently downloads and signs updates, and keeps your apps working in the background. With a paired device, installs happen with no interaction at all."))
+			Text(.localized("SignOs checks your repositories and installs updates in the background, keeping your apps fresh and working. With a paired device, installs happen with no interaction at all."))
 		}
 	}
 

@@ -87,7 +87,14 @@ final class ArchiveHandler: NSObject {
 		return dest
 	}
 	
+	/// Background operations (automatic updates/installs) force the
+	/// fastest compression so packaging never delays the install.
+	static var fastestCompressionOverride: Bool = false
+
 	static func getCompressionLevel() -> Int {
-		UserDefaults.standard.integer(forKey: "Feather.compressionLevel")
+		if fastestCompressionOverride {
+			return 0
+		}
+		return UserDefaults.standard.integer(forKey: "Feather.compressionLevel")
 	}
 }

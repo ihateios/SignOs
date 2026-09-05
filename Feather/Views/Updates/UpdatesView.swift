@@ -96,7 +96,7 @@ extension UpdatesView {
 						Text("Automatic Updates")
 							.font(.body.weight(.semibold))
 							.foregroundStyle(.primary)
-						Text("Download, sign and prepare updates in the background")
+						Text("Updates install themselves in the background")
 							.font(.caption)
 							.foregroundStyle(.secondary)
 					}
@@ -248,7 +248,7 @@ extension UpdatesView {
 
 	private func _queueCard(_ job: AutoSignManager.Job, isActive: Bool) -> some View {
 		HStack(spacing: 14) {
-			Image(systemName: isActive ? "signature" : "hourglass")
+			Image(systemName: isActive ? "square.and.arrow.down.fill" : "hourglass")
 				.font(.title3)
 				.foregroundStyle(isActive ? Color.accentColor : Color.secondary)
 				.frame(width: 30)
@@ -382,9 +382,9 @@ extension UpdatesView {
 extension UpdatesView {
 	private func _reasonLabel(_ reason: AutoSignManager.Reason) -> String {
 		switch reason {
-		case .autoSign: return .localized("Auto-Signed")
-		case .autoUpdate: return .localized("Automatic Update")
-		case .renewal: return .localized("Kept Signed")
+		case .autoSign: return .localized("Installing")
+		case .autoUpdate: return .localized("Installing Update")
+		case .renewal: return .localized("Refreshing")
 		}
 	}
 
