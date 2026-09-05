@@ -160,7 +160,7 @@ struct FeatherApp: App {
 	}
 }
 
-class AppDelegate: NSObject, UIApplicationDelegate {
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 	func application(
 		_ application: UIApplication,
 		didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -170,12 +170,36 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 		ResetView.clearWorkCache()
 		_addDefaultCertificates()
 
+		UNUserNotificationCenter.current().delegate = self
+
 		#if !targetEnvironment(macCatalyst)
 		// background refresh registration must happen before launching finishes
 		AutoUpdateManager.registerBackgroundRefresh()
 		#endif
 
 		return true
+	}
+
+	func userNotificationCenter(
+		_ center: UNUserNotificationCenter,
+		willPresent notification: UNNotification
+	) async -> UNNotificationPresentationOptions {
+		[.banner, .sound]
+	}
+
+	func userNotificationCenter(
+		_ center: UNUserNotificationCenter,
+		didReceive response: UNNotificationResponse
+	) async {
+		let identifier = response.notification.request.identifier
+		guard identifier.hasPrefix("signos.install.") else { return }
+		let uuid = String(identifier.dropFirst("signos.install.".count))
+
+		NotificationCenter.default.post(
+			name: Notification.Name("SignOs.autoInstallRequested"),
+			object: nil,
+			userInfo: ["uuid": uuid]
+		)
 	}
 	
 	private func _createPipeline() {

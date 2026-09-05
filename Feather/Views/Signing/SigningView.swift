@@ -47,34 +47,13 @@ struct SigningView: View {
 	var body: some View {
 		NBNavigationView("", displayMode: .inline) {
 			Form {
-				_customizationOptions(for: app)
+				_appHeader(for: app)
+				_identitySection(for: app)
 				_cert()
 				_customizationProperties(for: app)
-				
-				// horrible
-				Rectangle()
-					.foregroundStyle(.clear)
-					.frame(height: 30)
-					.listRowBackground(EmptyView())
 			}
-			.overlay {
-				VStack(spacing: 0) {
-					Spacer()
-					NBVariableBlurView()
-						.frame(height: UIDevice.current.userInterfaceIdiom == .pad ? 60 : 80)
-						.rotationEffect(.degrees(180))
-						.overlay {
-							Button {
-								_start()
-							} label: {
-								NBSheetButton(title: .localized("Start Signing"), style: .prominent)
-									.padding()
-							}
-							.buttonStyle(.plain)
-							.offset(y: UIDevice.current.userInterfaceIdiom == .pad ? -20 : -40)
-						}
-				}
-				.ignoresSafeArea(edges: .bottom)
+			.safeAreaInset(edge: .bottom) {
+				_signButton()
 			}
 
 			.toolbar {
@@ -148,21 +127,41 @@ struct SigningView: View {
 // MARK: - Extension: View
 extension SigningView {
 	@ViewBuilder
-	private func _customizationOptions(for app: AppInfoPresentable) -> some View {
-		NBSection(.localized("Customization")) {
-			Menu {
-				Button(.localized("Select Alternative Icon"), systemImage: "app.dashed") { _isAltPickerPresenting = true }
-				Button(.localized("Choose from Files"), systemImage: "folder") { _isFilePickerPresenting = true }
-				Button(.localized("Choose from Photos"), systemImage: "photo") { _isImagePickerPresenting = true }
-			} label: {
-				if let icon = appIcon {
-					Image(uiImage: icon)
-						.appIconStyle()
-				} else {
-					FRAppIconView(app: app, size: 56)
+	private func _appHeader(for app: AppInfoPresentable) -> some View {
+		Section {
+			HStack(spacing: 16) {
+				Menu {
+					Button(.localized("Select Alternative Icon"), systemImage: "app.dashed") { _isAltPickerPresenting = true }
+					Button(.localized("Choose from Files"), systemImage: "folder") { _isFilePickerPresenting = true }
+					Button(.localized("Choose from Photos"), systemImage: "photo") { _isImagePickerPresenting = true }
+				} label: {
+					if let icon = appIcon {
+						Image(uiImage: icon)
+							.appIconStyle()
+					} else {
+						FRAppIconView(app: app, size: 64)
+					}
 				}
+
+				VStack(alignment: .leading, spacing: 4) {
+					Text(_temporaryOptions.appName ?? app.name ?? "App")
+						.font(.title3.weight(.bold))
+						.lineLimit(2)
+					Text(verbatim: _temporaryOptions.appVersion ?? app.version ?? "")
+						.font(.footnote)
+						.foregroundStyle(.secondary)
+				}
+
+				Spacer()
 			}
-			
+			.padding(.vertical, 4)
+		}
+		.buttonStyle(.plain)
+	}
+
+	@ViewBuilder
+	private func _identitySection(for app: AppInfoPresentable) -> some View {
+		Section {
 			_infoCell(.localized("Name"), desc: _temporaryOptions.appName ?? app.name) {
 				SigningPropertiesView(
 					title: .localized("Name"),
@@ -184,6 +183,43 @@ extension SigningView {
 					bindingValue: $_temporaryOptions.appVersion
 				)
 			}
+		} header: {
+			Text(.localized("Identity"))
+		}
+	}
+	
+	@ViewBuilder
+	private func _signButton() -> some View {
+		VStack(spacing: 0) {
+			Divider()
+			HStack {
+				Button {
+					_start()
+				} label: {
+					HStack(spacing: 8) {
+						if _isSigning {
+							ProgressView()
+								.tint(.white)
+						} else {
+							Image(systemName: "signature")
+						}
+						Text(verbatim: _isSigning ? .localized("Signing") : .localized("Sign"))
+							.font(.headline)
+					}
+					.foregroundStyle(.white)
+					.frame(maxWidth: .infinity, minHeight: 50)
+					.background(
+						RoundedRectangle(cornerRadius: 16, style: .continuous)
+							.fill(.tint)
+					)
+					.opacity(_isSigning ? 0.7 : 1.0)
+				}
+				.buttonStyle(.plain)
+				.disabled(_isSigning)
+			}
+			.padding(.horizontal, 16)
+			.padding(.vertical, 10)
+			.background(.bar)
 		}
 	}
 	

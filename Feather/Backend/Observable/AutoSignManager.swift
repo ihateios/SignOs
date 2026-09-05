@@ -10,6 +10,7 @@
 
 import Foundation
 import CoreData
+import UIKit
 import IDeviceSwift
 
 @MainActor
@@ -37,7 +38,21 @@ final class AutoSignManager: ObservableObject {
 
 	private var _isRunning = false
 
-	private init() {}
+	/// Keeps local install servers alive until the system fetches the payload.
+	private static var _liveInstallers: [ServerInstaller] = []
+
+	private init() {
+		NotificationCenter.default.addObserver(
+			forName: Notification.Name("SignOs.autoInstallRequested"),
+			object: nil,
+			queue: .main
+		) { [weak self] note in
+			guard let uuid = note.userInfo?["uuid"] as? String else { return }
+			Task { @MainActor in
+				await self?._handleInstallRequest(uuid: uuid)
+			}
+		}
+	}
 
 	// MARK: - Settings
 
@@ -159,23 +174,74 @@ final class AutoSignManager: ObservableObject {
 		)
 	}
 
-	// MARK: - Silent install
+	// MARK: - Install
 
+	/// App Store-style finishing move: after signing, the install happens
+	/// with the least friction the active method allows. Paired-device
+	/// installs are fully silent; local-server installs either fire the
+	/// system prompt immediately (app in foreground) or present a
+	/// "tap to install" notification that completes on open.
 	private func _attemptSilentInstall(_ app: Signed) async {
-		// Server-based installation always requires the user to confirm
-		// the system dialog, so it cannot be silent. The direct device
-		// (tunnel/pairing) method supports fully silent installs.
 		let method = UserDefaults.standard.integer(forKey: "Feather.installationMethod")
-		guard method == 1 else { return }
+		guard method == 0 || method == 1 else { return }
 
 		do {
-			let viewModel = InstallerStatusViewModel(isIdevice: true)
-			let handler = ArchiveHandler(app: app, viewModel: viewModel)
-			try await handler.move()
-			let packageUrl = try await handler.archive()
+			if method == 1 {
+				let viewModel = InstallerStatusViewModel(isIdevice: true)
+				let handler = ArchiveHandler(app: app, viewModel: viewModel)
+				try await handler.move()
+				let packageUrl = try await handler.archive()
 
-			let proxy = InstallationProxy(viewModel: viewModel)
-			try await proxy.install(at: packageUrl, suspend: false)
+				let proxy = InstallationProxy(viewModel: viewModel)
+				try await proxy.install(at: packageUrl, suspend: false)
+			} else {
+				try await _serverInstall(app)
+			}
+		} catch {
+			lastErrorMessage = error.localizedDescription
+		}
+	}
+
+	private func _serverInstall(_ app: Signed) async throws {
+		let viewModel = InstallerStatusViewModel(isIdevice: false)
+		let handler = ArchiveHandler(app: app, viewModel: viewModel)
+		try await handler.move()
+		let packageUrl = try await handler.archive()
+
+		let installer = try ServerInstaller(app: app, viewModel: viewModel)
+		installer.packageUrl = packageUrl
+		Self._retainInstaller(installer)
+
+		if UIApplication.shared.applicationState == .active {
+			if let url = URL(string: installer.iTunesLink) {
+				UIApplication.shared.open(url)
+			}
+		} else if let uuid = app.uuid {
+			AutoUpdateManager.shared.notify(
+				title: "\(app.name ?? "App") is ready",
+				body: "Tap to install it now.",
+				identifier: "signos.install.\(uuid)"
+			)
+		}
+	}
+
+	private static func _retainInstaller(_ installer: ServerInstaller) {
+		_liveInstallers.append(installer)
+		Task { @MainActor in
+			try? await Task.sleep(nanoseconds: 600_000_000_000)
+			_liveInstallers.removeAll { $0 === installer }
+		}
+	}
+
+	/// Fires the pending install when the user opens SignOs from the
+	/// "tap to install" notification.
+	private func _handleInstallRequest(uuid: String) async {
+		let request: NSFetchRequest<Signed> = Signed.fetchRequest()
+		request.predicate = NSPredicate(format: "uuid == %@", uuid)
+		guard let app = (try? Storage.shared.context.fetch(request))?.first else { return }
+
+		do {
+			try await _serverInstall(app)
 		} catch {
 			lastErrorMessage = error.localizedDescription
 		}
