@@ -94,7 +94,7 @@ extension SettingsView {
 						.foregroundStyle(.tint)
 						.padding(.horizontal, 9)
 						.padding(.vertical, 4)
-						.background(Capsule().fill(Color.tint.opacity(0.12)))
+						.background(Capsule().fill(Color.accentColor.opacity(0.12)))
 				}
 				.padding(.vertical, 6)
 			}
