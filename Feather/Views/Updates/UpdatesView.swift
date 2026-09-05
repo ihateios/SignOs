@@ -2,9 +2,9 @@
 //  UpdatesView.swift
 //  Feather
 //
-//  App Store-style updates surface: available updates from sources,
-//  the background signing queue, active downloads and recently
-//  updated apps, with automatic updates fully controllable.
+//  App Store-style updates surface, built from scratch: available
+//  updates, the background signing queue, active downloads and
+//  recently updated apps.
 //
 
 import SwiftUI
@@ -35,207 +35,141 @@ struct UpdatesView: View {
 		}
 	}
 
+	private var _isChecking: Bool {
+		autoUpdateManager.isAutoChecking || updateManager.isChecking
+	}
+
 	// MARK: Body
 	var body: some View {
-		NBNavigationView(.localized("Updates")) {
-			NBListAdaptable {
-				_automationSection()
-				_emptyStateSection()
-				_availableUpdatesSection()
-				_signingQueueSection()
-				_activeDownloadsSection()
-				_recentlyUpdatedSection()
+		NavigationStack {
+			ScrollView {
+				VStack(alignment: .leading, spacing: 30) {
+					WSHeroHeader(eyebrow: "SignOs", title: "Updates")
+
+					_automationSection()
+
+					if !_sortedUpdates.isEmpty {
+						_availableUpdatesSection()
+					}
+
+					if autoSignManager.currentJob != nil || !autoSignManager.queue.isEmpty || !downloadManager.downloads.isEmpty {
+						_activitySection()
+					}
+
+					if !_recentlyUpdated.isEmpty {
+						_recentlyUpdatedSection()
+					}
+
+					if
+						_sortedUpdates.isEmpty,
+						downloadManager.downloads.isEmpty,
+						autoSignManager.currentJob == nil,
+						!_isChecking
+					{
+						_emptyCard()
+					}
+				}
+				.padding(.horizontal, 16)
+				.padding(.top, 4)
+				.padding(.bottom, 28)
 			}
+			.background(Color(uiColor: .systemGroupedBackground))
+			.toolbar(.hidden, for: .navigationBar)
 			.refreshable {
 				await autoUpdateManager.checkNow(notifyWhenClean: false)
 			}
 		}
-		.navigationTitle(.localized("Updates"))
 	}
+}
 
-	// MARK: Sections
-
+// MARK: - Sections
+extension UpdatesView {
 	@ViewBuilder
 	private func _automationSection() -> some View {
-		NBSection(.localized("Automatic Updates")) {
-			Toggle(isOn: Binding(
-				get: { autoUpdateManager.isAutoUpdateEnabled },
-				set: { autoUpdateManager.isAutoUpdateEnabled = $0 }
-			)) {
-				NBTitleWithSubtitleView(
-					title: .localized("Update Automatically"),
-					subtitle: .localized("Download, sign and prepare updates in the background")
-				)
-			}
-			.tint(.accentColor)
-
-			Toggle(isOn: Binding(
-				get: { autoUpdateManager.isAutoRenewEnabled },
-				set: { autoUpdateManager.isAutoRenewEnabled = $0 }
-			)) {
-				NBTitleWithSubtitleView(
-					title: .localized("Keep Apps Signed"),
-					subtitle: .localized("Renews your apps automatically in the background")
-				)
-			}
-			.tint(.accentColor)
-
-			HStack {
-				if autoUpdateManager.isAutoChecking || updateManager.isChecking {
-					ProgressView()
-					Text(.localized("Checking for Updates"))
-						.font(.subheadline)
-						.foregroundStyle(.secondary)
-				} else {
-					if let last = autoUpdateManager.lastCheckDate {
-						Text(verbatim: .localized("Last checked %@.", arguments: last.formatted(.relative(presentation: .named))))
-							.font(.subheadline)
-							.foregroundStyle(.secondary)
-					} else {
-						Text(.localized("Never checked."))
-							.font(.subheadline)
+		VStack(spacing: 10) {
+			WSCard {
+				Toggle(isOn: Binding(
+					get: { autoUpdateManager.isAutoUpdateEnabled },
+					set: { autoUpdateManager.isAutoUpdateEnabled = $0 }
+				)) {
+					VStack(alignment: .leading, spacing: 3) {
+						Text("Automatic Updates")
+							.font(.body.weight(.semibold))
+							.foregroundStyle(.primary)
+						Text("Download, sign and prepare updates in the background")
+							.font(.caption)
 							.foregroundStyle(.secondary)
 					}
 				}
+				.tint(.accentColor)
+			}
+
+			WSCard {
+				Toggle(isOn: Binding(
+					get: { autoUpdateManager.isAutoRenewEnabled },
+					set: { autoUpdateManager.isAutoRenewEnabled = $0 }
+				)) {
+					VStack(alignment: .leading, spacing: 3) {
+						Text("Keep Apps Signed")
+							.font(.body.weight(.semibold))
+							.foregroundStyle(.primary)
+						Text("Renews your apps automatically in the background")
+							.font(.caption)
+							.foregroundStyle(.secondary)
+					}
+				}
+				.tint(.accentColor)
+			}
+
+			HStack(spacing: 10) {
+				if _isChecking {
+					ProgressView()
+				}
+
+				Text(_checkStatusText)
+					.font(.footnote)
+					.foregroundStyle(.secondary)
+
 				Spacer()
-				WSActionButton(title: .localized("Check"), systemImage: "arrow.triangle.2.circlepath") {
+
+				WSActionButton(title: "Check", systemImage: "arrow.triangle.2.circlepath") {
 					Task { await autoUpdateManager.checkNow(notifyWhenClean: false) }
 				}
 			}
-		} footer: {
-			Text(.localized("Updates are prepared in the background. Your app data is always preserved."))
+			.padding(.horizontal, 6)
 		}
 	}
 
-	@ViewBuilder
-	private func _emptyStateSection() -> some View {
-		if
-			_sortedUpdates.isEmpty,
-			downloadManager.downloads.isEmpty,
-			autoSignManager.currentJob == nil,
-			_recentlyUpdated.isEmpty
-		{
-			Section {
-				if #available(iOS 17, *) {
-					ContentUnavailableView {
-						Label(.localized("All Apps Up to Date"), systemImage: "checkmark.seal.fill")
-					} description: {
-						Text(.localized("Apps from your repositories will appear here when updates are available."))
-					}
-					.frame(maxWidth: .infinity)
-					.padding(.vertical, 24)
-				}
-			}
-			.listRowBackground(Color.clear)
+	private var _checkStatusText: String {
+		if _isChecking {
+			return .localized("Checking for Updates")
 		}
+		if let last = autoUpdateManager.lastCheckDate {
+			return .localized("Last checked %@.", arguments: last.formatted(.relative(presentation: .named)))
+		}
+		return .localized("Never checked.")
 	}
 
 	@ViewBuilder
 	private func _availableUpdatesSection() -> some View {
-		let updates = _sortedUpdates
-		if !updates.isEmpty {
-			NBSection(.localized("Available Updates"), secondary: updates.count.description) {
-				ForEach(updates, id: \.id) { update in
-					_updateRow(update)
-				}
-
-				WSActionButton(
-					title: .localized("Update All"),
-					systemImage: "arrow.down.circle.fill",
-					style: .prominent
-				) {
-					_downloadAll(updates)
-				}
-				.frame(maxWidth: .infinity, alignment: .trailing)
-				.padding(.vertical, 4)
-				.listRowBackground(Color.clear)
+		VStack(alignment: .leading, spacing: 12) {
+			WSSectionTitle(
+				title: "Available Updates",
+				actionTitle: "Update All"
+			) {
+				_downloadAll(_sortedUpdates)
 			}
-		}
-	}
 
-	@ViewBuilder
-	private func _signingQueueSection() -> some View {
-		if autoSignManager.currentJob != nil || !autoSignManager.queue.isEmpty {
-			NBSection(.localized("Signing Queue")) {
-				if let job = autoSignManager.currentJob {
-					_queueRow(job, isActive: true)
-				}
-				ForEach(autoSignManager.queue) { job in
-					_queueRow(job, isActive: false)
+			VStack(spacing: 10) {
+				ForEach(_sortedUpdates, id: \.id) { update in
+					_updateCard(update)
 				}
 			}
 		}
 	}
 
-	@ViewBuilder
-	private func _activeDownloadsSection() -> some View {
-		if !downloadManager.downloads.isEmpty {
-			NBSection(.localized("Downloading")) {
-				ForEach(downloadManager.downloads, id: \.id) { download in
-					HStack(spacing: 14) {
-						Image(systemName: "arrow.down.circle.fill")
-							.font(.title2)
-							.foregroundStyle(.tint)
-
-						VStack(alignment: .leading, spacing: 6) {
-							Text(download.fileName)
-								.font(.subheadline.weight(.medium))
-								.lineLimit(1)
-							ProgressView(value: download.overallProgress)
-								.progressViewStyle(.linear)
-							HStack {
-								Text(verbatim: "\(Int(download.overallProgress * 100))%")
-									.font(.caption2.monospacedDigit())
-									.foregroundStyle(.secondary)
-								Spacer()
-								if download.totalBytes > 0 {
-									Text(verbatim: download.totalBytes.formattedByteCount)
-										.font(.caption2)
-										.foregroundStyle(.tertiary)
-								}
-							}
-						}
-					}
-					.padding(.vertical, 2)
-				}
-			}
-		}
-	}
-
-	@ViewBuilder
-	private func _recentlyUpdatedSection() -> some View {
-		let apps = _recentlyUpdated
-		if !apps.isEmpty {
-			NBSection(.localized("Recently Updated")) {
-				ForEach(apps, id: \.uuid) { app in
-					HStack(spacing: 18) {
-						FRAppIconView(app: app, size: 57)
-
-						NBTitleWithSubtitleView(
-							title: app.name ?? .localized("Unknown"),
-							subtitle: [
-								app.version,
-								(app.date ?? .distantPast).formatted(.relative(presentation: .named))
-							].compactMap { $0 }.joined(separator: " • ")
-						)
-
-						Spacer()
-
-						WSActionButton(title: .localized("Open")) {
-							UIApplication.openApp(with: app.identifier ?? "")
-						}
-					}
-					.padding(.vertical, 2)
-				}
-			}
-		}
-	}
-
-	// MARK: Rows
-
-	@ViewBuilder
-	private func _updateRow(_ update: AppUpdate) -> some View {
-		HStack(spacing: 18) {
+	private func _updateCard(_ update: AppUpdate) -> some View {
+		HStack(spacing: 14) {
 			FRAppIconView(app: _resolvePresentable(update), size: 57)
 				.overlay(alignment: .topTrailing) {
 					Circle()
@@ -244,33 +178,28 @@ struct UpdatesView: View {
 						.offset(x: 4, y: -4)
 				}
 
-			NBTitleWithSubtitleView(
-				title: update.appName,
-				subtitle: _versionText(update),
-				linelimit: 2
-			)
+			VStack(alignment: .leading, spacing: 3) {
+				Text(update.appName)
+					.font(.body.weight(.semibold))
+					.foregroundStyle(.primary)
+					.lineLimit(1)
+				Text(verbatim: _versionText(update))
+					.font(.caption)
+					.foregroundStyle(.secondary)
+					.lineLimit(2)
+			}
 
 			Spacer()
 
-			WSActionButton(title: .localized("Update")) {
+			WSActionButton(title: "Update") {
 				_download(update)
 			}
 		}
-		.padding(.vertical, 2)
-		.swipeActions(edge: .leading) {
-			Button {
-				let enabled = autoUpdateManager.isAutoUpdateEnabled(for: update.bundleIdentifier)
-				autoUpdateManager.setAutoUpdate(!enabled, for: update.bundleIdentifier)
-			} label: {
-				Label(
-					autoUpdateManager.isAutoUpdateEnabled(for: update.bundleIdentifier)
-						? .localized("Disable Auto")
-						: .localized("Enable Auto"),
-					systemImage: "automatic"
-				)
-			}
-			.tint(.indigo)
-		}
+		.padding(14)
+		.background(
+			RoundedRectangle(cornerRadius: 20, style: .continuous)
+				.fill(Color(uiColor: .secondarySystemGroupedBackground))
+		)
 		.contextMenu {
 			Button {
 				_download(update)
@@ -298,18 +227,36 @@ struct UpdatesView: View {
 	}
 
 	@ViewBuilder
-	private func _queueRow(_ job: AutoSignManager.Job, isActive: Bool) -> some View {
-		HStack(spacing: 14) {
-			if isActive {
-				ProgressView()
-			} else {
-				Image(systemName: "hourglass")
-					.foregroundStyle(.secondary)
-			}
+	private func _activitySection() -> some View {
+		VStack(alignment: .leading, spacing: 12) {
+			WSSectionTitle(title: "Activity")
 
-			VStack(alignment: .leading, spacing: 2) {
-				Text(job.appName ?? .localized("Unknown"))
-					.font(.subheadline.weight(.medium))
+			VStack(spacing: 10) {
+				if let job = autoSignManager.currentJob {
+					_queueCard(job, isActive: true)
+				}
+				ForEach(autoSignManager.queue) { job in
+					_queueCard(job, isActive: false)
+				}
+
+				ForEach(downloadManager.downloads, id: \.id) { download in
+					_downloadCard(download)
+				}
+			}
+		}
+	}
+
+	private func _queueCard(_ job: AutoSignManager.Job, isActive: Bool) -> some View {
+		HStack(spacing: 14) {
+			Image(systemName: isActive ? "signature" : "hourglass")
+				.font(.title3)
+				.foregroundStyle(isActive ? Color.accentColor : Color.secondary)
+				.frame(width: 30)
+
+			VStack(alignment: .leading, spacing: 3) {
+				Text(job.appName ?? "Unknown")
+					.font(.body.weight(.semibold))
+					.foregroundStyle(.primary)
 					.lineLimit(1)
 				Text(_reasonLabel(job.reason))
 					.font(.caption)
@@ -319,15 +266,120 @@ struct UpdatesView: View {
 			Spacer()
 
 			if isActive {
-				Text(.localized("Signing"))
-					.font(.caption.weight(.semibold))
-					.textCase(.uppercase)
-					.foregroundStyle(.tint)
+				ProgressView()
 			}
 		}
-		.padding(.vertical, 2)
+		.padding(14)
+		.background(
+			RoundedRectangle(cornerRadius: 20, style: .continuous)
+				.fill(Color(uiColor: .secondarySystemGroupedBackground))
+		)
 	}
 
+	private func _downloadCard(_ download: Download) -> some View {
+		VStack(alignment: .leading, spacing: 8) {
+			HStack(spacing: 10) {
+				Image(systemName: "arrow.down.circle.fill")
+					.font(.title3)
+					.foregroundStyle(.tint)
+					.symbolRenderingMode(.hierarchical)
+
+				Text(download.fileName)
+					.font(.footnote.weight(.semibold))
+					.lineLimit(1)
+
+				Spacer()
+
+				Text(verbatim: "\(Int(download.overallProgress * 100))%")
+					.font(.caption.weight(.semibold).monospacedDigit())
+					.foregroundStyle(.secondary)
+					.contentTransition(.numericText())
+			}
+
+			ProgressView(value: download.overallProgress)
+				.progressViewStyle(.linear)
+
+			if download.totalBytes > 0 {
+				Text(verbatim: download.totalBytes.formattedByteCount)
+					.font(.caption2)
+					.foregroundStyle(.tertiary)
+			}
+		}
+		.padding(14)
+		.background(
+			RoundedRectangle(cornerRadius: 20, style: .continuous)
+				.fill(Color(uiColor: .secondarySystemGroupedBackground))
+		)
+	}
+
+	@ViewBuilder
+	private func _recentlyUpdatedSection() -> some View {
+		VStack(alignment: .leading, spacing: 12) {
+			WSSectionTitle(title: "Recently Updated")
+
+			VStack(spacing: 10) {
+				ForEach(_recentlyUpdated, id: \.uuid) { app in
+					HStack(spacing: 14) {
+						FRAppIconView(app: app, size: 57)
+
+						VStack(alignment: .leading, spacing: 3) {
+							Text(app.name ?? "Unknown")
+								.font(.body.weight(.semibold))
+								.foregroundStyle(.primary)
+								.lineLimit(1)
+							Text(verbatim: [
+								app.version,
+								(app.date ?? .distantPast).formatted(.relative(presentation: .named))
+							].compactMap { $0 }.joined(separator: " • "))
+								.font(.caption)
+								.foregroundStyle(.secondary)
+								.lineLimit(2)
+						}
+
+						Spacer()
+
+						WSActionButton(title: "Open") {
+							UIApplication.openApp(with: app.identifier ?? "")
+						}
+					}
+					.padding(14)
+					.background(
+						RoundedRectangle(cornerRadius: 20, style: .continuous)
+							.fill(Color(uiColor: .secondarySystemGroupedBackground))
+					)
+				}
+			}
+		}
+	}
+
+	private func _emptyCard() -> some View {
+		VStack(spacing: 10) {
+			if #available(iOS 17, *) {
+				ContentUnavailableView {
+					Label("All Apps Up to Date", systemImage: "checkmark.seal.fill")
+				} description: {
+					Text("Apps from your repositories will appear here when updates are available.")
+				}
+			} else {
+				Image(systemName: "checkmark.seal.fill")
+					.font(.system(size: 44))
+					.foregroundStyle(.tint)
+				Text("All Apps Up to Date")
+					.font(.headline)
+			}
+		}
+		.frame(maxWidth: .infinity)
+		.padding(.vertical, 32)
+		.padding(.horizontal, 16)
+		.background(
+			RoundedRectangle(cornerRadius: 24, style: .continuous)
+				.fill(Color(uiColor: .secondarySystemGroupedBackground).opacity(0.6))
+		)
+	}
+}
+
+// MARK: - Helpers
+extension UpdatesView {
 	private func _reasonLabel(_ reason: AutoSignManager.Reason) -> String {
 		switch reason {
 		case .autoSign: return .localized("Auto-Signed")
@@ -344,11 +396,8 @@ struct UpdatesView: View {
 	}
 
 	private func _resolvePresentable(_ update: AppUpdate) -> (any AppInfoPresentable)? {
-		let signed = _signedApps.first { $0.uuid == update.localUUID }
-		return signed
+		_signedApps.first { $0.uuid == update.localUUID }
 	}
-
-	// MARK: Actions
 
 	private func _download(_ update: AppUpdate) {
 		UIImpactFeedbackGenerator(style: .light).impactOccurred()
