@@ -40,6 +40,7 @@ struct UpdatesView: View {
 		NBNavigationView(.localized("Updates")) {
 			NBListAdaptable {
 				_automationSection()
+				_emptyStateSection()
 				_availableUpdatesSection()
 				_signingQueueSection()
 				_activeDownloadsSection()
@@ -47,22 +48,6 @@ struct UpdatesView: View {
 			}
 			.refreshable {
 				await autoUpdateManager.checkNow(notifyWhenClean: false)
-			}
-			.overlay {
-				if
-					_sortedUpdates.isEmpty,
-					downloadManager.downloads.isEmpty,
-					autoSignManager.currentJob == nil,
-					_recentlyUpdated.isEmpty
-				{
-					if #available(iOS 17, *) {
-						ContentUnavailableView {
-							Label(.localized("All Apps Up to Date"), systemImage: "checkmark.seal.fill")
-						} description: {
-							Text(.localized("Apps from your repositories will appear here when updates are available."))
-						}
-					}
-				}
 			}
 		}
 		.navigationTitle(.localized("Updates"))
@@ -119,6 +104,29 @@ struct UpdatesView: View {
 			}
 		} footer: {
 			Text(.localized("Updates are signed with the app's existing certificate when it is still valid, so app data is preserved."))
+		}
+	}
+
+	@ViewBuilder
+	private func _emptyStateSection() -> some View {
+		if
+			_sortedUpdates.isEmpty,
+			downloadManager.downloads.isEmpty,
+			autoSignManager.currentJob == nil,
+			_recentlyUpdated.isEmpty
+		{
+			Section {
+				if #available(iOS 17, *) {
+					ContentUnavailableView {
+						Label(.localized("All Apps Up to Date"), systemImage: "checkmark.seal.fill")
+					} description: {
+						Text(.localized("Apps from your repositories will appear here when updates are available."))
+					}
+					.frame(maxWidth: .infinity)
+					.padding(.vertical, 24)
+				}
+			}
+			.listRowBackground(Color.clear)
 		}
 	}
 
