@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct TabbarView: View {
-	@State private var selectedTab: TabEnum = .sources
+	@State private var selectedTab: TabEnum = .discover
 
 	var body: some View {
 		TabView(selection: $selectedTab) {

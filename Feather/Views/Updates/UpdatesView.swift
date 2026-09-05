@@ -103,7 +103,7 @@ struct UpdatesView: View {
 						.foregroundStyle(.secondary)
 				} else {
 					if let last = autoUpdateManager.lastCheckDate {
-						Text(.localized("Last checked %@.", arguments: last.formatted(.relative(presentation: .named))))
+						Text(verbatim: .localized("Last checked %@.", arguments: last.formatted(.relative(presentation: .named))))
 							.font(.subheadline)
 							.foregroundStyle(.secondary)
 					} else {

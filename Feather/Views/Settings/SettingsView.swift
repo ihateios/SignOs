@@ -39,7 +39,7 @@ struct SettingsView: View {
 			Form {
 				_profile()
 				_automation()
-				_certificates()
+				_certificatesSection()
 				_features()
 				_directories()
 				_danger()
@@ -146,7 +146,7 @@ extension SettingsView {
 	}
 
 	@ViewBuilder
-	private func _certificates() -> some View {
+	private func _certificatesSection() -> some View {
 		NBSection(.localized("Certificates")) {
 
 			if let cert = selectedCertificate {
