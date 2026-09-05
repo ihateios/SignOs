@@ -35,20 +35,3 @@ struct InstallPendingUpdatesIntent: AppIntent {
 		return .result(dialog: IntentDialog(stringLiteral: text))
 	}
 }
-
-struct SignOsShortcuts: AppShortcutsProvider {
-	static var appShortcuts: [AppShortcut] {
-		AppShortcut(
-			intent: CheckUpdatesIntent,
-			phrases: ["Check updates in \(.applicationName)"],
-			shortTitle: "Check Updates",
-			systemImageName: "arrow.triangle.2.circlepath"
-		)
-		AppShortcut(
-			intent: InstallPendingUpdatesIntent,
-			phrases: ["Install updates in \(.applicationName)"],
-			shortTitle: "Install Updates",
-			systemImageName: "arrow.down.circle.fill"
-		)
-	}
-}

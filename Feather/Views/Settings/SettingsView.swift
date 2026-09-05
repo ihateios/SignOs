@@ -199,7 +199,7 @@ extension SettingsView {
 			}
 			.tint(.accentColor)
 
-			Toggle(isOn: _badgeUpdates) {
+			Toggle(isOn: $_badgeUpdates) {
 				HStack(spacing: 12) {
 					WSIconTile(systemImage: "app.badge.fill", color: .mint)
 					Text(.localized("Badge App Icon"))
