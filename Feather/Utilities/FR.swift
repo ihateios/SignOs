@@ -228,7 +228,7 @@ enum FR {
 				title = cert.nickname ?? decoded?.Name ?? .localized("Unknown")
 				
 				if let getTaskAllow = decoded?.Entitlements?["get-task-allow"]?.value as? Bool, getTaskAllow == true {
-					title = "🐞 \(title)"
+					title = "\(title) (Debug)"
 				}
 				
 				let selectAction = UIAlertAction(title: title, style: .default) { _ in

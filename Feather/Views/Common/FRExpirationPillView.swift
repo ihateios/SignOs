@@ -12,28 +12,38 @@ struct FRExpirationPillView: View {
 	let title: String
 	let revoked: Bool
 	let expiration: Date.ExpirationInfo?
-	
+
 	var body: some View {
 		let textLabel = revoked
 			? .localized("Revoked")
 			: expiration?.formatted ?? title
-		
-		let textForeground = (expiration == nil)
-			? Color.accentColor
-			: .white
-		
-		let textBackground = revoked
-			? .red
-			: expiration?.color.opacity(0.85) ?? Color(uiColor: .quaternarySystemFill)
-		
+
+		let hasWarning = revoked || expiration != nil
+
 		Text(textLabel)
-			.lineLimit(0)
-			.font(.headline.bold())
-			.foregroundStyle(textForeground)
+			.lineLimit(1)
+			.font(.caption.weight(.bold))
+			.textCase(hasWarning ? nil : .uppercase)
+			.foregroundStyle(_foreground(hasWarning))
 			.padding(.horizontal, 12)
-			.padding(.vertical, 6)
-			.background(textBackground)
+			.frame(minHeight: 30)
+			.background(_background(hasWarning))
 			.clipShape(Capsule())
 	}
-}
 
+	private func _foreground(_ hasWarning: Bool) -> Color {
+		guard hasWarning else { return .accentColor }
+		return revoked ? .white : (expiration?.color ?? .white)
+	}
+
+	@ViewBuilder
+	private func _background(_ hasWarning: Bool) -> some View {
+		if hasWarning {
+			Capsule().fill(expiration?.color.opacity(0.85) ?? .red)
+		} else if #available(iOS 26.0, *) {
+			Color.clear.glassEffect(.regular.interactive(), in: Capsule())
+		} else {
+			Capsule().fill(Color(uiColor: .secondarySystemFill))
+		}
+	}
+}

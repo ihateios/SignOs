@@ -13,12 +13,14 @@ import OSLog
 @main
 struct FeatherApp: App {
 	@UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-	
+	@Environment(\.scenePhase) private var scenePhase
+
 	let heartbeat = HeartbeatManager.shared
-	
+
 	@StateObject var downloadManager = DownloadManager.shared
+	@StateObject private var autoUpdateManager = AutoUpdateManager.shared
 	let storage = Storage.shared
-	
+
 	var body: some Scene {
 		WindowGroup {
 			VStack {
@@ -43,14 +45,29 @@ struct FeatherApp: App {
 				if let style = UIUserInterfaceStyle(rawValue: UserDefaults.standard.integer(forKey: "Feather.userInterfaceStyle")) {
 					UIApplication.topViewController()?.view.window?.overrideUserInterfaceStyle = style
 				}
-				
-				UIApplication.topViewController()?.view.window?.tintColor = UIColor(Color(hex: UserDefaults.standard.string(forKey: "Feather.userTintColor") ?? "#848ef9"))
+
+				UIApplication.topViewController()?.view.window?.tintColor = UIColor(Color(hex: UserDefaults.standard.string(forKey: "Feather.userTintColor") ?? "#0a84ff"))
+
+				autoUpdateManager.requestNotificationAuthorization()
+				autoUpdateManager.start()
+			}
+			.onChange(of: scenePhase) { phase in
+				switch phase {
+				case .active:
+					autoUpdateManager.tick()
+				case .background:
+					#if !targetEnvironment(macCatalyst)
+					autoUpdateManager.scheduleBackgroundRefresh()
+					#endif
+				default:
+					break
+				}
 			}
 		}
 	}
-	
+
 	private func _handleURL(_ url: URL) {
-		if url.scheme == "feather" {
+		if url.scheme == "signos" || url.scheme == "feather" {
 			/// feather://import-certificate?p12=<base64>&mobileprovision=<base64>&password=<base64>
 			if url.host == "import-certificate" {
 				guard
@@ -152,6 +169,12 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 		_createDocumentsDirectories()
 		ResetView.clearWorkCache()
 		_addDefaultCertificates()
+
+		#if !targetEnvironment(macCatalyst)
+		// background refresh registration must happen before launching finishes
+		AutoUpdateManager.registerBackgroundRefresh()
+		#endif
+
 		return true
 	}
 	
@@ -164,7 +187,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 				config.urlCache = nil
 				return DataLoader(configuration: config)
 			}()
-			let dataCache = try? DataCache(name: "thewonderofyou.Feather.datacache") // disk cache
+			let dataCache = try? DataCache(name: "com.signos.app.datacache") // disk cache
 			let imageCache = Nuke.ImageCache() // memory cache
 			dataCache?.sizeLimit = 500 * 1024 * 1024
 			imageCache.costLimit = 100 * 1024 * 1024

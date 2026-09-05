@@ -1,0 +1,296 @@
+//
+//  AutoUpdateManager.swift
+//  Feather
+//
+//  App Store-style automatic updates: periodically compares installed
+//  apps against their repositories, silently downloads, signs and
+//  (where the installation method allows) installs updates.
+//
+
+import Foundation
+import CoreData
+import UserNotifications
+import BackgroundTasks
+import AltSourceKit
+
+enum SignOsAuto {
+	/// Prefix marking downloads that were started by the automatic updater.
+	static let downloadPrefix = "SignOsAutoDownload"
+}
+
+@MainActor
+final class AutoUpdateManager: ObservableObject {
+	static let shared = AutoUpdateManager()
+
+	static let autoDownloadPrefix = SignOsAuto.downloadPrefix
+
+	private enum Keys {
+		static let autoUpdateEnabled = "SignOs.autoUpdateEnabled"
+		static let autoRenewEnabled = "SignOs.autoRenewEnabled"
+		static let notificationsEnabled = "SignOs.notificationsEnabled"
+		static let perAppAutoUpdate = "SignOs.perAppAutoUpdate"
+		static let lastCheck = "SignOs.lastUpdateCheck"
+		static let intervalHours = "SignOs.autoUpdateInterval"
+		static let renewThresholdDays = "SignOs.renewThresholdDays"
+		static let renewedUUIDs = "SignOs.renewedUUIDs"
+	}
+
+	@Published private(set) var isAutoChecking = false
+
+	private var _timer: Timer?
+
+	// MARK: - Settings (UserDefaults backed so views can bind with @AppStorage)
+
+	var isAutoUpdateEnabled: Bool {
+		get { UserDefaults.standard.object(forKey: Keys.autoUpdateEnabled) as? Bool ?? true }
+		set {
+			UserDefaults.standard.set(newValue, forKey: Keys.autoUpdateEnabled)
+			if newValue { tick() }
+		}
+	}
+
+	var isAutoRenewEnabled: Bool {
+		get { UserDefaults.standard.object(forKey: Keys.autoRenewEnabled) as? Bool ?? true }
+		set { UserDefaults.standard.set(newValue, forKey: Keys.autoRenewEnabled) }
+	}
+
+	var notificationsEnabled: Bool {
+		get { UserDefaults.standard.object(forKey: Keys.notificationsEnabled) as? Bool ?? true }
+		set {
+			UserDefaults.standard.set(newValue, forKey: Keys.notificationsEnabled)
+			if newValue { requestNotificationAuthorization() }
+		}
+	}
+
+	var intervalHours: Double {
+		get { UserDefaults.standard.object(forKey: Keys.intervalHours) as? Double ?? 6.0 }
+		set { UserDefaults.standard.set(newValue, forKey: Keys.intervalHours) }
+	}
+
+	var renewThresholdDays: Int {
+		get { UserDefaults.standard.object(forKey: Keys.renewThresholdDays) as? Int ?? 3 }
+		set { UserDefaults.standard.set(newValue, forKey: Keys.renewThresholdDays) }
+	}
+
+	var lastCheckDate: Date? {
+		get { UserDefaults.standard.object(forKey: Keys.lastCheck) as? Date }
+		set { UserDefaults.standard.set(newValue, forKey: Keys.lastCheck) }
+	}
+
+	// MARK: - Init
+
+	private init() {}
+
+	/// Boots the periodic checker. Called once on app launch.
+	func start() {
+		_timer?.invalidate()
+		_timer = Timer.scheduledTimer(withTimeInterval: 15 * 60, repeats: true) { [weak self] _ in
+			Task { @MainActor [weak self] in
+				self?.tick()
+			}
+		}
+		tick()
+	}
+
+	/// Runs a check if the configured interval has elapsed.
+	func tick() {
+		if let last = lastCheckDate, Date().timeIntervalSince(last) < intervalHours * 3600 {
+			checkRenewals()
+			return
+		}
+		Task { await checkNow(notifyWhenClean: false) }
+	}
+
+	// MARK: - Checking
+
+	func checkNow(notifyWhenClean: Bool = true) async {
+		guard !isAutoChecking else { return }
+		isAutoChecking = true
+		defer {
+			isAutoChecking = false
+			lastCheckDate = Date()
+		}
+
+		await UpdateManager.shared.checkForUpdates(
+			sources: _fetchSources(),
+			localApps: _fetchSignedApps().map { $0 as AppInfoPresentable }
+				+ _fetchImportedApps().map { $0 as AppInfoPresentable }
+		)
+
+		checkRenewals()
+
+		let updates = UpdateManager.shared.updates.values
+			.sorted { $0.appName.localizedCaseInsensitiveCompare($1.appName) == .orderedAscending }
+
+		if updates.isEmpty {
+			if notifyWhenClean {
+				notify(
+					title: "All Apps Up to Date",
+					body: "Every app matches the latest version in its repository.",
+					identifier: "signos.updates.clean"
+				)
+			}
+			return
+		}
+
+		if !isAutoUpdateEnabled {
+			notify(
+				title: "Updates Available",
+				body: updates.count == 1
+					? "\(updates[0].appName) has a new version available."
+					: "\(updates.count) apps have new versions available.",
+				identifier: "signos.updates.available"
+			)
+			return
+		}
+
+		var started = 0
+		for update in updates {
+			guard isAutoUpdateEnabled(for: update.bundleIdentifier) else { continue }
+			let jobId = "\(Self.autoDownloadPrefix)_\(update.localUUID)"
+			guard DownloadManager.shared.getDownload(by: jobId) == nil else { continue }
+
+			_ = DownloadManager.shared.startDownload(
+				from: update.downloadURL,
+				id: jobId,
+				sourceProvenance: update.sourceProvenance
+			)
+			started += 1
+		}
+
+		if started > 0 {
+			notify(
+				title: "Updating Apps",
+				body: started == 1
+					? "Downloading \(updates.count == 1 ? updates[0].appName : "1 app") in the background."
+					: "Downloading \(started) app updates in the background.",
+				identifier: "signos.updates.downloading"
+			)
+		}
+	}
+
+	// MARK: - Per-app auto-update
+
+	func isAutoUpdateEnabled(for identifier: String) -> Bool {
+		guard isAutoUpdateEnabled else { return false }
+		let overrides = UserDefaults.standard.dictionary(forKey: Keys.perAppAutoUpdate) as? [String: Bool]
+		return overrides?[identifier] ?? true
+	}
+
+	func setAutoUpdate(_ enabled: Bool, for identifier: String) {
+		var overrides = UserDefaults.standard.dictionary(forKey: Keys.perAppAutoUpdate) as? [String: Bool] ?? [:]
+		overrides[identifier] = enabled
+		UserDefaults.standard.set(overrides, forKey: Keys.perAppAutoUpdate)
+	}
+
+	// MARK: - Certificate renewal
+
+	/// Re-signs apps whose certificate is about to expire (or was revoked)
+	/// using the healthiest available certificate, so installs survive
+	/// past the 7/365-day signing windows.
+	func checkRenewals() {
+		guard isAutoRenewEnabled else { return }
+
+		let threshold = Double(renewThresholdDays) * 86400
+		var renewed = Set(UserDefaults.standard.stringArray(forKey: Keys.renewedUUIDs) ?? [])
+
+		for app in _fetchSignedApps() {
+			guard let uuid = app.uuid, !renewed.contains(uuid) else { continue }
+
+			let needsRenewal: Bool
+			if let cert = app.certificate {
+				if cert.revoked {
+					needsRenewal = true
+				} else if let expiration = cert.expiration {
+					needsRenewal = expiration.timeIntervalSinceNow <= threshold
+				} else {
+					needsRenewal = false
+				}
+			} else {
+				needsRenewal = false
+			}
+
+			guard needsRenewal else { continue }
+
+			// Only renew when a healthy replacement certificate exists.
+			guard let replacement = _healthiestCertificate(excluding: app.certificate) else { continue }
+
+			renewed.insert(uuid)
+			UserDefaults.standard.set(Array(renewed), forKey: Keys.renewedUUIDs)
+
+			AutoSignManager.shared.enqueue(app: app, reason: .renewal)
+		}
+	}
+
+	private func _healthiestCertificate(excluding: CertificatePair?) -> CertificatePair? {
+		let certs = Storage.shared.getAllCertificates().filter { cert in
+			guard !cert.revoked, cert != excluding else { return false }
+			if let expiration = cert.expiration {
+				return expiration.timeIntervalSinceNow > 86400
+			}
+			return true
+		}
+		return certs.first { $0.isDefault } ?? certs.first
+	}
+
+	// MARK: - Notifications
+
+	func requestNotificationAuthorization() {
+		UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+	}
+
+	func notify(title: String, body: String, identifier: String = UUID().uuidString) {
+		guard notificationsEnabled else { return }
+
+		let content = UNMutableNotificationContent()
+		content.title = title
+		content.body = body
+		content.sound = .default
+
+		let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
+		UNUserNotificationCenter.current().add(request)
+	}
+
+	// MARK: - Background refresh
+
+	#if !targetEnvironment(macCatalyst)
+	func scheduleBackgroundRefresh() {
+		let request = BGAppRefreshTaskRequest(identifier: "\(Bundle.main.bundleIdentifier!).refresh")
+		request.earliestBeginDate = Date(timeIntervalSinceNow: 4 * 3600)
+		try? BGTaskScheduler.shared.submit(request)
+	}
+
+	static func registerBackgroundRefresh() {
+		BGTaskScheduler.shared.register(
+			forTaskWithIdentifier: "\(Bundle.main.bundleIdentifier!).refresh",
+			using: nil
+		) { task in
+			Task { @MainActor in
+				await AutoUpdateManager.shared.checkNow(notifyWhenClean: false)
+				AutoUpdateManager.shared.scheduleBackgroundRefresh()
+				task.setTaskCompleted(success: true)
+			}
+		}
+	}
+	#endif
+
+	// MARK: - Fetch helpers
+
+	private func _fetchSources() -> [AltSource] {
+		let request: NSFetchRequest<AltSource> = AltSource.fetchRequest()
+		request.sortDescriptors = [NSSortDescriptor(keyPath: \AltSource.name, ascending: true)]
+		return (try? Storage.shared.context.fetch(request)) ?? []
+	}
+
+	private func _fetchSignedApps() -> [Signed] {
+		let request: NSFetchRequest<Signed> = Signed.fetchRequest()
+		request.sortDescriptors = [NSSortDescriptor(keyPath: \Signed.date, ascending: false)]
+		return (try? Storage.shared.context.fetch(request)) ?? []
+	}
+
+	private func _fetchImportedApps() -> [Imported] {
+		let request: NSFetchRequest<Imported> = Imported.fetchRequest()
+		request.sortDescriptors = [NSSortDescriptor(keyPath: \Imported.date, ascending: false)]
+		return (try? Storage.shared.context.fetch(request)) ?? []
+	}
+}

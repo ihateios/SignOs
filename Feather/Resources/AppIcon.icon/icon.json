@@ -1,61 +1,61 @@
 {
-  "fill" : {
-    "linear-gradient" : [
-      "srgb:0.47451,0.52157,0.97647,1.00000",
-      "srgb:0.39928,0.44985,0.96515,1.00000"
+  "fill": {
+    "linear-gradient": [
+      "srgb:0.07059,0.42353,1.00000,1.00000",
+      "srgb:0.00000,0.24314,0.78431,1.00000"
     ],
-    "orientation" : {
-      "start" : {
-        "x" : 0.5,
-        "y" : 0
+    "orientation": {
+      "start": {
+        "x": 0.5,
+        "y": 0.0
       },
-      "stop" : {
-        "x" : 0.5,
-        "y" : 0.7
+      "stop": {
+        "x": 0.5,
+        "y": 1.0
       }
     }
   },
-  "groups" : [
+  "groups": [
     {
-      "layers" : [
-
-      ],
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.5
+      "layers": [],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
       },
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.5
+      "translucency": {
+        "enabled": true,
+        "value": 0.5
       }
     },
     {
-      "layers" : [
+      "layers": [
         {
-          "image-name" : "feather.png",
-          "name" : "feather"
+          "image-name": "feather.png",
+          "name": "feather",
+          "glass": false,
+          "opacity": 1.0
         },
         {
-          "glass" : false,
-          "image-name" : "feather 5.png",
-          "name" : "feather 5",
-          "opacity" : 0.14
+          "glass": false,
+          "image-name": "feather 5.png",
+          "name": "feather 5",
+          "opacity": 0.18
         }
       ],
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.5
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
       },
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.5
+      "translucency": {
+        "enabled": true,
+        "value": 0.5
       }
     }
   ],
-  "supported-platforms" : {
-    "circles" : [
+  "supported-platforms": {
+    "circles": [
       "watchOS"
     ],
-    "squares" : "shared"
+    "squares": "shared"
   }
 }

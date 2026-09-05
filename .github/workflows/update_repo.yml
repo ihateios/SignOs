@@ -23,7 +23,7 @@ jobs:
           DATE="${{ github.event.release.published_at }}"
           VERSION="${TAG#v}"
 
-          DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/Feather.ipa"
+          DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/SignOs.ipa"
 
           jq \
             --arg version "$VERSION" \

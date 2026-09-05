@@ -5,6 +5,7 @@
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER).userTask.*</string>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER).refresh</string>
 	</array>
 	<key>CFBundleDocumentTypes</key>
 	<array>
@@ -19,7 +20,7 @@
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>thewonderofyou.Feather.ipa</string>
+				<string>com.signos.app.ipa</string>
 			</array>
 		</dict>
 		<dict>
@@ -33,69 +34,12 @@
 			<string>Alternate</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>thewonderofyou.Feather.tipa</string>
+				<string>com.signos.app.tipa</string>
 			</array>
 		</dict>
 	</array>
 	<key>CFBundleIcons</key>
 	<dict>
-		<key>CFBundleAlternateIcons</key>
-		<dict>
-			<key>Donor</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>Donor</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-			<key>V0</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>V0</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-			<key>V1</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>V1</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-			<key>V1Mac</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>V1Mac</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-			<key>V2Mac</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>V2Mac</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-			<key>Wing</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>Wing</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-		</dict>
 		<key>CFBundlePrimaryIcon</key>
 		<dict>
 			<key>CFBundleIconFiles</key>
@@ -114,9 +58,10 @@
 			<key>CFBundleURLIconFile</key>
 			<string>feather_extension</string>
 			<key>CFBundleURLName</key>
-			<string>thewonderofyou.Feather</string>
+			<string>com.signos.app</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
+				<string>signos</string>
 				<string>feather</string>
 			</array>
 		</dict>
@@ -152,7 +97,7 @@
 				<string>IPA</string>
 			</dict>
 			<key>UTTypeIdentifier</key>
-			<string>thewonderofyou.Feather.ipa</string>
+			<string>com.signos.app.ipa</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -184,7 +129,7 @@
 				<string>TIPA</string>
 			</dict>
 			<key>UTTypeIdentifier</key>
-			<string>thewonderofyou.Feather.tipa</string>
+			<string>com.signos.app.tipa</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>

@@ -14,15 +14,15 @@ import IDeviceSwift
 // MARK: - View
 struct SettingsView: View {
 	@AppStorage("feather.selectedCert") private var _storedSelectedCert: Int = 0
-	@State private var _currentIcon: String? = UIApplication.shared.alternateIconName
-	
-	// MARK: Fetch
+	@AppStorage("SignOs.autoDeleteOldVersions") private var _autoDeleteOldVersions: Bool = true
+	@StateObject private var autoUpdateManager = AutoUpdateManager.shared
+	@StateObject private var autoSignManager = AutoSignManager.shared
 	@FetchRequest(
 		entity: CertificatePair.entity(),
 		sortDescriptors: [NSSortDescriptor(keyPath: \CertificatePair.date, ascending: false)],
 		animation: .snappy
 	) private var _certificates: FetchedResults<CertificatePair>
-	
+
 	private var selectedCertificate: CertificatePair? {
 		guard
 			_storedSelectedCert >= 0,
@@ -33,69 +33,16 @@ struct SettingsView: View {
 		return _certificates[_storedSelectedCert]
 	}
 
-    
-	private let _donationsUrl = "https://github.com/sponsors/claration"
-	private let _githubUrl = "https://github.com/claration/Feather"
-    
 	// MARK: Body
 	var body: some View {
 		NBNavigationView(.localized("Settings")) {
 			Form {
-				#if !NIGHTLY && !DEBUG
-					SettingsDonationCellView(site: _donationsUrl)
-				#endif
-                
-				_feedback()
-                
-				Section {
-					NavigationLink(destination: AppearanceView()) {
-						Label(.localized("Appearance"), systemImage: "paintbrush")
-					}
-					NavigationLink(destination: AppIconView(currentIcon: $_currentIcon)) {
-						Label(.localized("App Icon"), systemImage: "app.badge")
-					}
-				}
-                
-				NBSection(.localized("Certificates")) {
-                    
-					if let cert = selectedCertificate {
-						CertificatesCellView(cert: cert)
-					} else {
-						Text(.localized("No Certificate"))
-							.font(.footnote)
-							.foregroundColor(.disabled())
-					}
-					NavigationLink(destination: CertificatesView()) {
-						Label(.localized("Certificates"), systemImage: "checkmark.seal")
-					}
-                 
-				} footer: {
-					Text(.localized("Add and manage certificates used for signing applications."))
-				}
-                
-				NBSection(.localized("Features")) {
-					NavigationLink(destination: ConfigurationView()) {
-						Label(.localized("Signing Options"), systemImage: "signature")
-					}
-					NavigationLink(destination: ArchiveView()) {
-						Label(.localized("Archive & Compression"), systemImage: "archivebox")
-					}
-					NavigationLink(destination: InstallationView()) {
-						Label(.localized("Installation"), systemImage: "arrow.down.circle")
-					}
-				} footer: {
-					Text(.localized("Configure the apps way of installing, its zip compression levels, and custom modifications to apps."))
-				}
-                
+				_profile()
+				_automation()
+				_certificates()
+				_features()
 				_directories()
-                
-				Section {
-					NavigationLink(destination: ResetView()) {
-						Label(.localized("Reset"), systemImage: "trash")
-					}
-				} footer: {
-					Text(.localized("Reset the applications sources, certificates, apps, and general contents."))
-				}
+				_danger()
 			}
 		}
 	}
@@ -104,39 +51,143 @@ struct SettingsView: View {
 // MARK: - View extension
 extension SettingsView {
 	@ViewBuilder
-	private func _feedback() -> some View {
+	private func _profile() -> some View {
 		Section {
 			NavigationLink(destination: AboutView()) {
-				Label {
-					Text(verbatim: .localized("About %@", arguments: Bundle.main.name))
-				} icon: {
-					FRAppIconView(size: 23)
+				HStack(spacing: 16) {
+					FRAppIconView(size: 56)
+
+					VStack(alignment: .leading, spacing: 3) {
+						Text("SignOs")
+							.font(.title2.weight(.bold))
+						Text(verbatim: "by @ihateios")
+							.font(.subheadline)
+							.foregroundStyle(.secondary)
+					}
+
+					Spacer()
+
+					Text(verbatim: Bundle.main.version)
+						.font(.caption.weight(.semibold))
+						.foregroundStyle(.secondary)
+						.padding(.horizontal, 8)
+						.padding(.vertical, 3)
+						.background(Capsule().fill(Color(uiColor: .tertiarySystemFill)))
 				}
+				.padding(.vertical, 4)
 			}
-            
-			Button(.localized("Submit Feedback"), systemImage: "safari") {
-				let bugAction: UIAlertAction = .init(title: .localized("Bug Report"), style: .default) { _ in
-					UIApplication.open(_makeGitHubIssueURL(url: _githubUrl))
-				}
-				
-				let chooseAction: UIAlertAction = .init(title: .localized("Other"), style: .default) { _ in
-					UIApplication.open(URL(string: "\(_githubUrl)/issues/new/choose")!)
-				}
-				
-				UIAlertController.showAlertWithCancel(
-					title: .localized("Submit Feedback"),
-					message: nil,
-					actions: [bugAction, chooseAction]
-				)
-			}
-			Button(.localized("GitHub Repository"), systemImage: "safari") {
-				UIApplication.open(_githubUrl)
-			}
-		} footer: {
-			Text(.localized("If any issues occur within the app please report it via the GitHub repository. When submitting an issue, make sure to submit detailed information."))
 		}
 	}
-    
+
+	@ViewBuilder
+	private func _automation() -> some View {
+		Section {
+			Toggle(isOn: Binding(
+				get: { autoUpdateManager.isAutoUpdateEnabled },
+				set: { autoUpdateManager.isAutoUpdateEnabled = $0 }
+			)) {
+				Label(.localized("Update Automatically"), systemImage: "arrow.triangle.2.circlepath")
+			}
+
+			Picker(selection: Binding(
+				get: { Int(autoUpdateManager.intervalHours) },
+				set: { autoUpdateManager.intervalHours = Double($0) }
+			)) {
+				Text(.localized("Hourly")).tag(1)
+				Text(.localized("Every 3 Hours")).tag(3)
+				Text(.localized("Every 6 Hours")).tag(6)
+				Text(.localized("Every 12 Hours")).tag(12)
+				Text(.localized("Daily")).tag(24)
+			} label: {
+				Label(.localized("Check Interval"), systemImage: "clock")
+			}
+
+			Toggle(isOn: Binding(
+				get: { autoSignManager.isAutoSignEnabled },
+				set: { autoSignManager.isAutoSignEnabled = $0 }
+			)) {
+				Label(.localized("Auto-Sign Imported Apps"), systemImage: "signature")
+			}
+
+			Toggle(isOn: Binding(
+				get: { autoUpdateManager.isAutoRenewEnabled },
+				set: { autoUpdateManager.isAutoRenewEnabled = $0 }
+			)) {
+				Label(.localized("Keep Apps Signed"), systemImage: "checkmark.seal")
+			}
+
+			Picker(selection: Binding(
+				get: { autoUpdateManager.renewThresholdDays },
+				set: { autoUpdateManager.renewThresholdDays = $0 }
+			)) {
+				Text(.localized("1 Day Before")).tag(1)
+				Text(.localized("2 Days Before")).tag(2)
+				Text(.localized("3 Days Before")).tag(3)
+				Text(.localized("5 Days Before")).tag(5)
+			} label: {
+				Label(.localized("Renew Ahead"), systemImage: "calendar.badge.clock")
+			}
+
+			Toggle(isOn: $_autoDeleteOldVersions) {
+				Label(.localized("Replace Old Versions"), systemImage: "arrow.3.trianglepath")
+			}
+
+			Toggle(isOn: Binding(
+				get: { autoUpdateManager.notificationsEnabled },
+				set: { autoUpdateManager.notificationsEnabled = $0 }
+			)) {
+				Label(.localized("Notifications"), systemImage: "bell")
+			}
+		} header: {
+			Text(.localized("Automation"))
+		} footer: {
+			Text(.localized("SignOs checks your repositories, silently downloads, signs and prepares updates, and re-signs apps before their certificate expires. Installations via a paired device are applied without any interaction."))
+		}
+	}
+
+	@ViewBuilder
+	private func _certificates() -> some View {
+		NBSection(.localized("Certificates")) {
+
+			if let cert = selectedCertificate {
+				CertificatesCellView(cert: cert)
+			} else {
+				Text(.localized("No Certificate"))
+					.font(.footnote)
+					.foregroundColor(.disabled())
+			}
+			NavigationLink(destination: CertificatesView()) {
+				Label(.localized("Certificates"), systemImage: "checkmark.seal")
+			}
+
+		} footer: {
+			Text(.localized("Add and manage certificates used for signing applications."))
+		}
+	}
+
+	@ViewBuilder
+	private func _features() -> some View {
+		NBSection(.localized("Signing")) {
+			NavigationLink(destination: ConfigurationView()) {
+				Label(.localized("Signing Options"), systemImage: "signature")
+			}
+			NavigationLink(destination: ArchiveView()) {
+				Label(.localized("Archive & Compression"), systemImage: "archivebox")
+			}
+			NavigationLink(destination: InstallationView()) {
+				Label(.localized("Installation"), systemImage: "arrow.down.circle")
+			}
+		} footer: {
+			Text(.localized("Configure the apps way of installing, its zip compression levels, and custom modifications to apps."))
+		}
+
+		NBSection(.localized("Appearance")) {
+			NavigationLink(destination: AppearanceView()) {
+				Label(.localized("Appearance"), systemImage: "paintbrush")
+			}
+		}
+	}
+
 	@ViewBuilder
 	private func _directories() -> some View {
 		NBSection(.localized("Misc")) {
@@ -153,52 +204,15 @@ extension SettingsView {
 			Text(.localized("All of the apps files are contained in the documents directory, here are some quick links to these."))
 		}
 	}
-    
-	private func _makeGitHubIssueURL(url: String) -> String {
-		var configurationSection = "### App Configuration:\n"
-		
-		switch UserDefaults.standard.integer(forKey: "Feather.installationMethod") {
-		case 0: // Server
-			let serverMethod = UserDefaults.standard.integer(forKey: "Feather.serverMethod")
-			let ipFix = UserDefaults.standard.bool(forKey: "Feather.ipFix")
-			let serverType = (serverMethod == 0) ? "Fully Local" : "Semi Local"
-			configurationSection += "- Install method: `Server`\n"
-			configurationSection += "  - Server type: `\(serverType)`\n"
-			configurationSection += "  - IP Fix: `\(ipFix)`\n"
-		case 1: // idevice
-			let pairingPath = HeartbeatManager.pairingFile()
-			let pairingExists = FileManager.default.fileExists(atPath: pairingPath)
-			let pairingStatus = pairingExists ? "`Present`" : "`Not Present`"
-			configurationSection += "- Install method: `idevice`\n"
-			configurationSection += "  - Pairing file: \(pairingStatus)\n"
-		default:
-			configurationSection += "- Install method: `Unknown`\n"
+
+	@ViewBuilder
+	private func _danger() -> some View {
+		Section {
+			NavigationLink(destination: ResetView()) {
+				Label(.localized("Reset"), systemImage: "trash")
+			}
+		} footer: {
+			Text(.localized("Reset the applications sources, certificates, apps, and general contents."))
 		}
-        
-		let body = """
-		### Device Information
-		- Device: `\(MobileGestalt().getStringForName("PhysicalHardwareNameString") ?? "Unknown")`
-		- iOS Version: `\(UIDevice.current.systemVersion)`
-		- App Version: `\(Bundle.main.version)`
-		
-		\(configurationSection)
-		
-		### Issue Description
-		<!-- Describe your issue here -->
-		
-		### Steps to Reproduce
-		1. 
-		2. 
-		3. 
-		
-		### Expected Behavior
-		
-		### Actual Behavior
-		"""
-		let encodedTitle = "[Bug] replace this with a descriptive title "
-			.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-		let encodedBody = body
-			.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-		return "\(url)/issues/new?template=bug.yml&title=\(encodedTitle)&text=\(encodedBody)"
 	}
 }

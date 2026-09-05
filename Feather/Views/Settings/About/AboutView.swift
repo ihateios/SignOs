@@ -21,25 +21,24 @@ extension AboutView {
 // MARK: - View
 struct AboutView: View {
 	@State private var _credits: [CreditsModel] = [
-		.init(name: "C", desc: "Developer", github: "claration"),
-		.init(name: "Asami", desc: "Developer", github: "Nyasami"),
+		.init(name: "claration", desc: "Feather Developer", github: "claration"),
+		.init(name: "Asami", desc: "Feather Developer", github: "Nyasami"),
 		.init(name: "Lakhan Lothiyi", desc: "AltStore Repositories", github: "llsc12"),
 	]
-	
-	let pngURL = URL(string: "https://sponsors.claration.dev/sponsors.png")!
-	
+
+	@State private var _handleCopied = false
+
 	// MARK: Body
 	var body: some View {
 		NBList(.localized("About")) {
 			Section {
-				VStack {
-					FRAppIconView(size: 72)
-					
-					Text(Bundle.main.exec)
-						.font(.largeTitle)
-						.bold()
+				VStack(spacing: 10) {
+					FRAppIconView(size: 96)
+
+					Text(verbatim: "SignOs")
+						.font(.largeTitle.weight(.bold))
 						.foregroundStyle(Color.accentColor)
-					
+
 					HStack(spacing: 4) {
 						Text(.localized("Version"))
 						Text(Bundle.main.version)
@@ -50,42 +49,47 @@ struct AboutView: View {
 			}
 			.frame(maxWidth: .infinity)
 			.listRowBackground(EmptyView())
-			
+
+			Section {
+				Button {
+					UIPasteboard.general.string = "@ihateios"
+					UIImpactFeedbackGenerator(style: .light).impactOccurred()
+					_handleCopied = true
+					DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+						_handleCopied = false
+					}
+				} label: {
+					HStack {
+						Image(systemName: "signature")
+							.font(.title3)
+							.foregroundStyle(.tint)
+							.frame(width: 45)
+
+						NBTitleWithSubtitleView(
+							title: "@ihateios",
+							subtitle: _handleCopied
+								? .localized("Copied to Clipboard")
+								: .localized("Crafted by @ihateios — tap to copy")
+						)
+
+						Spacer()
+
+						if _handleCopied {
+							Image(systemName: "checkmark.circle.fill")
+								.foregroundStyle(.green)
+								.transition(.scale.combined(with: .opacity))
+						}
+					}
+				}
+				.animation(.smooth, value: _handleCopied)
+			}
+
 			NBSection(.localized("Credits")) {
 				ForEach(_credits, id: \.github) { credit in
 					_credit(name: credit.name, desc: credit.desc, github: credit.github)
 				}
-				.transition(.slide)
-			}
-			
-			NBSection(.localized("Sponsors")) {
-				Text(.localized("💜 This couldn't of been done without my sponsors!"))
-					.foregroundStyle(.secondary)
-					.padding(.vertical, 2)
-				AsyncImage(url: pngURL) { phase in
-					switch phase {
-					case .empty:
-						ProgressView()
-							.frame(maxWidth: .infinity)
-							.frame(height: 120)
-					case .success(let image):
-						image
-							.resizable()
-							.scaledToFit()
-							.frame(maxWidth: .infinity)
-							.listRowInsets(EdgeInsets())
-					case .failure:
-						Image(systemName: "photo")
-							.resizable()
-							.scaledToFit()
-							.frame(maxWidth: .infinity)
-							.foregroundColor(.gray)
-							.frame(height: 120)
-						
-					@unknown default:
-						EmptyView()
-					}
-				}
+			} footer: {
+				Text(.localized("SignOs is built on the open-source Feather project. Thank you to its developers."))
 			}
 		}
 	}
@@ -110,7 +114,7 @@ extension AboutView {
 					size: 45,
 					isCircle: true
 				)
-				
+
 				Image(systemName: "arrow.up.right")
 					.foregroundColor(.secondary.opacity(0.65))
 			}

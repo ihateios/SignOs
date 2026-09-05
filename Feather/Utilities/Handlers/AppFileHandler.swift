@@ -130,6 +130,24 @@ final class AppFileHandler: NSObject, @unchecked Sendable {
 				provenance: sourceProvenance
 			)
 		}
+
+		// SignOs: route fresh imports into the background signing queue.
+		// Automatic update downloads skip the queue when auto-signing is
+		// disabled for that app, manual imports always honour the toggle.
+		let isAutoUpdateDownload = _download?.id.hasPrefix(SignOsAuto.downloadPrefix) ?? false
+		let autoIdentifier = bundle?.bundleIdentifier
+		await MainActor.run {
+			if isAutoUpdateDownload {
+				if
+					let identifier = autoIdentifier,
+					AutoUpdateManager.shared.isAutoUpdateEnabled(for: identifier)
+				{
+					AutoSignManager.shared.enqueueImported(uuid: _uuid)
+				}
+			} else {
+				AutoSignManager.shared.enqueueImported(uuid: _uuid)
+			}
+		}
 	}
 	
 	private func _directory() async throws -> URL {

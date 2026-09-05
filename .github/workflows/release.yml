@@ -1,46 +1,71 @@
-name: Release
+name: Build SignOs
 
 on:
   push:
-    tags:
-      - v*
+    branches: [main]
+    tags: ["v*"]
   workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: macos-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          submodules: 'true'
+          submodules: recursive
 
-      - name: Select Xcode
+      - name: Select newest Xcode (26+)
         run: |
-          sudo xcode-select -s /Applications/Xcode_26.3.0.app
+          set -e
+          CANDIDATES=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -12)
+          echo "$CANDIDATES"
+          SELECTED=""
+          for X in $(echo "$CANDIDATES" | sort -Vr); do
+            VER=$(basename "$X" | sed -E 's/Xcode_?([0-9]+).*/\1/')
+            if [ "$VER" -ge 26 ] 2>/dev/null; then SELECTED="$X"; break; fi
+          done
+          if [ -z "$SELECTED" ]; then SELECTED=$(echo "$CANDIDATES" | tail -1); fi
+          echo "Using $SELECTED"
+          sudo xcode-select -s "$SELECTED/Contents/Developer"
+          xcodebuild -version
+          xcodebuild -showsdks | grep -E "iphoneos"
 
-      - name: Compile Feather
-        run: | 
-          agvtool new-version -all $(git rev-parse HEAD)
-          make
-          mkdir upload
-          mv packages/* upload/
-
-      - name: Extract Version
-        id: get_version
+      - name: Set build number
         run: |
-          VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" _build/Payload/*.app/Info.plist)
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          agvtool new-version -all "$(git rev-parse --short HEAD)"
 
-      - name: Create Release
+      - name: Build (unsigned, iOS device)
+        run: |
+          make iphoneos
+
+      - name: Package IPA
+        run: |
+          ls -la packages/
+          APP=$(find _build/Payload -maxdepth 1 -name "*.app" | head -1)
+          echo "Built app: $APP"
+          /usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" "$APP/Info.plist"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SignOs-ipa
+          path: packages/SignOs.ipa
+          if-no-files-found: error
+
+      - name: Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          name: Feather v${{ env.VERSION }}
-          tag_name: v${{ env.VERSION }}
-          files: |
-            upload/*
+          name: SignOs ${{ github.ref_name }}
+          files: packages/SignOs.ipa
           generate_release_notes: true
           fail_on_unmatched_files: true
-          draft: true
-        env:
-          GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}

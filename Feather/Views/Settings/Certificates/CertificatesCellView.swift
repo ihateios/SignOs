@@ -21,7 +21,7 @@ struct CertificatesCellView: View {
 				var title = cert.nickname ?? data?.Name ?? .localized("Unknown")
 				
 				if let getTaskAllow = data?.Entitlements?["get-task-allow"]?.value as? Bool, getTaskAllow == true {
-					title = "🐞 \(title)"
+					title = "\(title) (Debug)"
 				}
 				
 				return title
