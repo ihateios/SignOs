@@ -19,6 +19,8 @@ struct FeatherApp: App {
 
 	@StateObject var downloadManager = DownloadManager.shared
 	@StateObject private var autoUpdateManager = AutoUpdateManager.shared
+	@AppStorage("SignOs.biometricLock") private var _biometricLock = false
+	@State private var _isLocked = false
 	let storage = Storage.shared
 
 	var body: some Scene {
@@ -41,6 +43,9 @@ struct FeatherApp: App {
 				}
 			}
 			// dear god help me
+			.fullScreenCover(isPresented: $_isLocked) {
+				WSLockView(onUnlock: { _isLocked = false })
+			}
 			.onAppear {
 				if let style = UIUserInterfaceStyle(rawValue: UserDefaults.standard.integer(forKey: "Feather.userInterfaceStyle")) {
 					UIApplication.topViewController()?.view.window?.overrideUserInterfaceStyle = style
@@ -50,6 +55,10 @@ struct FeatherApp: App {
 
 				autoUpdateManager.requestNotificationAuthorization()
 				autoUpdateManager.start()
+
+				if _biometricLock {
+					_isLocked = true
+				}
 			}
 			.onChange(of: scenePhase) { phase in
 				switch phase {
@@ -59,6 +68,9 @@ struct FeatherApp: App {
 					#if !targetEnvironment(macCatalyst)
 					autoUpdateManager.scheduleBackgroundRefresh()
 					#endif
+					if _biometricLock {
+						_isLocked = true
+					}
 				default:
 					break
 				}
@@ -191,8 +203,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 		_ center: UNUserNotificationCenter,
 		didReceive response: UNNotificationResponse
 	) async {
+		let action = response.actionIdentifier
+		guard
+			action == UNNotificationDefaultActionIdentifier || action == "SIGNOS_INSTALL_ACTION",
+			response.notification.request.identifier.hasPrefix("signos.install.")
+		else { return }
 		let identifier = response.notification.request.identifier
-		guard identifier.hasPrefix("signos.install.") else { return }
 		let uuid = String(identifier.dropFirst("signos.install.".count))
 
 		NotificationCenter.default.post(

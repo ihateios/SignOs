@@ -223,7 +223,8 @@ final class AutoSignManager: ObservableObject {
 			AutoUpdateManager.shared.notify(
 				title: "\(app.name ?? "App") is ready",
 				body: "Tap to install it now.",
-				identifier: "signos.install.\(uuid)"
+				identifier: "signos.install.\(uuid)",
+				category: "SIGNOS_INSTALL"
 			)
 		}
 	}

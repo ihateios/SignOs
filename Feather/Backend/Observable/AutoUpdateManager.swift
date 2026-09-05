@@ -9,6 +9,7 @@
 
 import Foundation
 import CoreData
+import Network
 import UserNotifications
 import BackgroundTasks
 import AltSourceKit
@@ -38,8 +39,20 @@ final class AutoUpdateManager: ObservableObject {
 	@Published private(set) var isAutoChecking = false
 
 	private var _timer: Timer?
+	private let _pathMonitor = NWPathMonitor()
+	private var _networkPath: NWPath?
 
 	// MARK: - Settings (UserDefaults backed so views can bind with @AppStorage)
+
+	var isWifiOnly: Bool {
+		get { UserDefaults.standard.object(forKey: "SignOs.autoUpdateWifiOnly") as? Bool ?? false }
+		set { UserDefaults.standard.set(newValue, forKey: "SignOs.autoUpdateWifiOnly") }
+	}
+
+	var isNightWindowOnly: Bool {
+		get { UserDefaults.standard.object(forKey: "SignOs.autoUpdateNightOnly") as? Bool ?? false }
+		set { UserDefaults.standard.set(newValue, forKey: "SignOs.autoUpdateNightOnly") }
+	}
 
 	var isAutoUpdateEnabled: Bool {
 		get { UserDefaults.standard.object(forKey: Keys.autoUpdateEnabled) as? Bool ?? true }
@@ -83,6 +96,13 @@ final class AutoUpdateManager: ObservableObject {
 
 	/// Boots the periodic checker. Called once on app launch.
 	func start() {
+		_pathMonitor.pathUpdateHandler = { [weak self] path in
+			Task { @MainActor [weak self] in
+				self?._networkPath = path
+			}
+		}
+		_pathMonitor.start(queue: DispatchQueue.global(qos: .utility))
+
 		_timer?.invalidate()
 		_timer = Timer.scheduledTimer(withTimeInterval: 15 * 60, repeats: true) { [weak self] _ in
 			Task { @MainActor [weak self] in
@@ -92,13 +112,32 @@ final class AutoUpdateManager: ObservableObject {
 		tick()
 	}
 
-	/// Runs a check if the configured interval has elapsed.
+	/// Runs a check if the configured interval has elapsed and the
+	/// network/time constraints allow it.
 	func tick() {
 		if let last = lastCheckDate, Date().timeIntervalSince(last) < intervalHours * 3600 {
 			checkRenewals()
 			return
 		}
+
+		guard _networkAllowed(), _withinWindow() else {
+			checkRenewals()
+			return
+		}
+
 		Task { await checkNow(notifyWhenClean: false) }
+	}
+
+	private func _networkAllowed() -> Bool {
+		guard isWifiOnly else { return true }
+		guard let path = _networkPath, path.status == .satisfied else { return true }
+		return !path.isExpensive
+	}
+
+	private func _withinWindow() -> Bool {
+		guard isNightWindowOnly else { return true }
+		let hour = Calendar.current.component(.hour, from: Date())
+		return hour >= 22 || hour < 6
 	}
 
 	// MARK: - Checking
@@ -236,16 +275,25 @@ final class AutoUpdateManager: ObservableObject {
 	// MARK: - Notifications
 
 	func requestNotificationAuthorization() {
+		let install = UNNotificationAction(identifier: "SIGNOS_INSTALL_ACTION", title: "Install", options: [.foreground])
+		let later = UNNotificationAction(identifier: "SIGNOS_LATER_ACTION", title: "Later", options: [])
+		UNUserNotificationCenter.current().setNotificationCategories([
+			UNNotificationCategory(identifier: "SIGNOS_INSTALL", actions: [install, later], intentIdentifiers: [])
+		])
+
 		UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
 	}
 
-	func notify(title: String, body: String, identifier: String = UUID().uuidString) {
+	func notify(title: String, body: String, identifier: String = UUID().uuidString, category: String? = nil) {
 		guard notificationsEnabled else { return }
 
 		let content = UNMutableNotificationContent()
 		content.title = title
 		content.body = body
 		content.sound = .default
+		if let category {
+			content.categoryIdentifier = category
+		}
 
 		let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
 		UNUserNotificationCenter.current().add(request)

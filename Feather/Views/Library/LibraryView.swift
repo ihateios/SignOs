@@ -1,8 +1,8 @@
 //
-//  ContentView.swift
+//  LibraryView.swift
 //  Feather
 //
-//  Created by samara on 10.04.2025.
+//  From-scratch App Store-style library surface.
 //
 
 import SwiftUI
@@ -13,177 +13,95 @@ import NimbleViews
 struct LibraryView: View {
 	@StateObject var downloadManager = DownloadManager.shared
 	@StateObject var updateManager = UpdateManager.shared
-	
+
 	@State private var _selectedInfoAppPresenting: AnyApp?
 	@State private var _selectedSigningAppPresenting: AnyApp?
 	@State private var _selectedInstallAppPresenting: AnyApp?
 	@State private var _isImportingPresenting = false
 	@State private var _isDownloadingPresenting = false
-	@State private var _alertDownloadString: String = "" // for _isDownloadingPresenting
-	@State private var _updateCheckRotation = 0.0
-	@State private var _isUpdateCheckCompleteVisible = false
-	
-	// MARK: Selection State
-	@State private var _selectedAppUUIDs: Set<String> = []
-	@State private var _editMode: EditMode = .inactive
-	
+	@State private var _alertDownloadString = ""
+
 	@State private var _searchText = ""
 	@State private var _selectedScope: Scope = .all
-	
-	
-	@Namespace private var _namespace
-	
-	// horror
-	private func filteredAndSortedApps<T>(from apps: FetchedResults<T>) -> [T] where T: NSManagedObject {
-		apps.filter {
-			_searchText.isEmpty ||
-				(($0.value(forKey: "name") as? String)?.localizedCaseInsensitiveContains(_searchText) ?? false)
-		}
-	}
-	
-	private var _filteredSignedApps: [Signed] {
-		filteredAndSortedApps(from: _signedApps)
-	}
-	
-	private var _filteredImportedApps: [Imported] {
-		filteredAndSortedApps(from: _importedApps)
-	}
-	
+
 	// MARK: Fetch
 	@FetchRequest(
 		entity: Signed.entity(),
 		sortDescriptors: [NSSortDescriptor(keyPath: \Signed.date, ascending: false)],
 		animation: .snappy
 	) private var _signedApps: FetchedResults<Signed>
-	
+
 	@FetchRequest(
 		entity: Imported.entity(),
 		sortDescriptors: [NSSortDescriptor(keyPath: \Imported.date, ascending: false)],
 		animation: .snappy
 	) private var _importedApps: FetchedResults<Imported>
-	
+
 	@FetchRequest(
 		entity: AltSource.entity(),
 		sortDescriptors: [NSSortDescriptor(keyPath: \AltSource.name, ascending: true)],
 		animation: .snappy
 	) private var _sources: FetchedResults<AltSource>
-	
+
+	private var _filteredSigned: [Signed] {
+		_signedApps.filter { _matches($0.name) }
+	}
+
+	private var _filteredImported: [Imported] {
+		_importedApps.filter { _matches($0.name) }
+	}
+
+	private var _showSigned: Bool {
+		_selectedScope == .all || _selectedScope == .signed
+	}
+
+	private var _showImported: Bool {
+		_selectedScope == .all || _selectedScope == .imported
+	}
+
+	private var _isCompletelyEmpty: Bool {
+		_filteredSigned.isEmpty && _filteredImported.isEmpty
+	}
+
+	private func _matches(_ name: String?) -> Bool {
+		_searchText.isEmpty || (name?.localizedCaseInsensitiveContains(_searchText) ?? false)
+	}
+
 	// MARK: Body
 	var body: some View {
-		NBNavigationView(.localized("Library")) {
-			NBListAdaptable {
-				if
-					!_filteredSignedApps.isEmpty,
-					_selectedScope == .all || _selectedScope == .signed
-				{
-					NBSection(
-						.localized("Signed"),
-						secondary: _filteredSignedApps.count.description
-					) {
-						ForEach(_filteredSignedApps, id: \.uuid) { app in
-							LibraryCellView(
-								app: app,
-								selectedInfoAppPresenting: $_selectedInfoAppPresenting,
-								selectedSigningAppPresenting: $_selectedSigningAppPresenting,
-								selectedInstallAppPresenting: $_selectedInstallAppPresenting,
-								selectedAppUUIDs: $_selectedAppUUIDs
-							)
-							.compatMatchedTransitionSource(id: app.uuid ?? "", ns: _namespace)
-						}
+		NavigationStack {
+			ScrollView {
+				VStack(alignment: .leading, spacing: 22) {
+					WSHeroHeader(
+						eyebrow: _countText,
+						title: "Library"
+					)
+
+					_searchBar()
+
+					if _showSigned && !_filteredSigned.isEmpty {
+						_appSection(title: "Installed", apps: _filteredSigned)
 					}
-				}
-				
-				if
-					!_filteredImportedApps.isEmpty,
-					_selectedScope == .all || _selectedScope == .imported
-				{
-					NBSection(
-						.localized("Imported"),
-						secondary: _filteredImportedApps.count.description
-					) {
-						ForEach(_filteredImportedApps, id: \.uuid) { app in
-							LibraryCellView(
-								app: app,
-								selectedInfoAppPresenting: $_selectedInfoAppPresenting,
-								selectedSigningAppPresenting: $_selectedSigningAppPresenting,
-								selectedInstallAppPresenting: $_selectedInstallAppPresenting,
-								selectedAppUUIDs: $_selectedAppUUIDs
-							)
-							.compatMatchedTransitionSource(id: app.uuid ?? "", ns: _namespace)
-						}
+
+					if _showImported && !_filteredImported.isEmpty {
+						_appSection(title: "Ready to Install", apps: _filteredImported)
 					}
+
+					if _isCompletelyEmpty {
+						_emptyCard()
+					}
+
+					_addCard()
 				}
+				.padding(.horizontal, 16)
+				.padding(.top, 4)
+				.padding(.bottom, 28)
 			}
-			.searchable(text: $_searchText, placement: .platform())
-			.compatSearchScopes($_selectedScope) {
-				ForEach(Scope.allCases, id: \.displayName) { scope in
-					Text(scope.displayName).tag(scope)
-				}
+			.background(Color(uiColor: .systemGroupedBackground))
+			.toolbar(.hidden, for: .navigationBar)
+			.refreshable {
+				await _checkForUpdates()
 			}
-			.scrollDismissesKeyboard(.interactively)
-			.overlay {
-				if
-					_filteredSignedApps.isEmpty,
-					_filteredImportedApps.isEmpty
-				{
-					if #available(iOS 17, *) {
-						ContentUnavailableView {
-							Label(.localized("No Apps"), systemImage: "questionmark.app.fill")
-						} description: {
-							Text(.localized("Get started by importing your first IPA file."))
-						} actions: {
-							Menu {
-								_importActions()
-							} label: {
-								NBButton(.localized("Import"), style: .text)
-							}
-						}
-					}
-				}
-			}
-			.toolbar {
-				ToolbarItem(placement: .topBarLeading) {
-					EditButton()
-				}
-				
-				if _editMode.isEditing {
-					NBToolbarButton(
-						.localized("Delete"),
-						systemImage: "trash",
-						isDisabled: _selectedAppUUIDs.isEmpty
-					) {
-						_bulkDeleteSelectedApps()
-					}
-				} else {
-					ToolbarItem(placement: .topBarTrailing) {
-						Button {
-							Task {
-								await _checkForUpdates()
-							}
-						} label: {
-							Image(systemName: _isUpdateCheckCompleteVisible ? "checkmark.circle.fill" : "arrow.triangle.2.circlepath")
-								.rotationEffect(.degrees(_updateCheckRotation))
-								.animation(
-									updateManager.isChecking
-										? .linear(duration: 0.8).repeatForever(autoreverses: false)
-										: .default,
-									value: _updateCheckRotation
-								)
-						}
-						.disabled(updateManager.isChecking)
-						.accessibilityLabel(.localized("Check for Updates"))
-					}
-					
-					NBToolbarMenu(
-						systemImage: "plus",
-						style: .icon,
-						placement: .topBarTrailing
-					) {
-						_importActions()
-					}
-				}
-			}
-			.environment(\.editMode, $_editMode)
 			.sheet(item: $_selectedInfoAppPresenting) { app in
 				LibraryInfoView(app: app.base)
 			}
@@ -194,15 +112,13 @@ struct LibraryView: View {
 			}
 			.fullScreenCover(item: $_selectedSigningAppPresenting) { app in
 				SigningView(app: app.base)
-					.compatNavigationTransition(id: app.base.uuid ?? "", ns: _namespace)
 			}
 			.sheet(isPresented: $_isImportingPresenting) {
 				FileImporterRepresentableView(
-					allowedContentTypes:  [.ipa, .tipa],
+					allowedContentTypes: [.ipa, .tipa],
 					allowsMultipleSelection: true,
 					onDocumentsPicked: { urls in
 						guard !urls.isEmpty else { return }
-						
 						for url in urls {
 							let id = "FeatherManualDownload_\(UUID().uuidString)"
 							let dl = downloadManager.startArchive(from: url, id: id)
@@ -229,106 +145,252 @@ struct LibraryView: View {
 					_selectedInstallAppPresenting = AnyApp(base: latest)
 				}
 			}
-			.onChange(of: _editMode) { mode in
-				if mode == .inactive {
-					_selectedAppUUIDs.removeAll()
+		}
+	}
+}
+
+// MARK: - Sections
+extension LibraryView {
+	private var _countText: String {
+		let total = _filteredSigned.count + _filteredImported.count
+		return total == 1 ? "1 APP" : "\(total) APPS"
+	}
+
+	@ViewBuilder
+	private func _searchBar() -> some View {
+		HStack(spacing: 8) {
+			Image(systemName: "magnifyingglass")
+				.foregroundStyle(.secondary)
+			TextField("Search apps", text: $_searchText)
+				.textInputAutocapitalization(.never)
+				.autocorrectionDisabled()
+			if !_searchText.isEmpty {
+				Button {
+					_searchText = ""
+				} label: {
+					Image(systemName: "xmark.circle.fill")
+						.foregroundStyle(.tertiary)
 				}
 			}
-			.onChange(of: updateManager.isChecking) { isChecking in
-				_handleUpdateCheckStateChange(isChecking)
+		}
+		.padding(.horizontal, 12)
+		.padding(.vertical, 10)
+		.background(
+			RoundedRectangle(cornerRadius: 14, style: .continuous)
+				.fill(Color(uiColor: .secondarySystemGroupedBackground))
+		)
+
+		Picker("", selection: $_selectedScope) {
+			Text("All").tag(Scope.all)
+			Text("Installed").tag(Scope.signed)
+			Text("Imports").tag(Scope.imported)
+		}
+		.pickerStyle(.segmented)
+	}
+
+	@ViewBuilder
+	private func _appSection(title: String, apps: [any AppInfoPresentable]) -> some View {
+		VStack(alignment: .leading, spacing: 12) {
+			WSSectionTitle(title: title, actionTitle: "\(apps.count)")
+
+			VStack(spacing: 10) {
+				ForEach(apps, id: \.uuid) { app in
+					_appCard(app)
+				}
 			}
 		}
 	}
-}
 
-// MARK: - Extension: View
-extension LibraryView {
 	@ViewBuilder
-	private func _importActions() -> some View {
-		Button(.localized("Import from Files"), systemImage: "folder") {
-			_isImportingPresenting = true
-		}
-		Button(.localized("Import from URL"), systemImage: "globe") {
-			_isDownloadingPresenting = true
-		}
-	}
-}
+	private func _appCard(_ app: any AppInfoPresentable) -> some View {
+		HStack(spacing: 14) {
+			FRAppIconView(app: app, size: 57)
+				.overlay(alignment: .topTrailing) {
+					if updateManager.update(for: app) != nil {
+						Circle()
+							.fill(Color.accentColor)
+							.frame(width: 10, height: 10)
+							.offset(x: 4, y: -4)
+					}
+				}
 
-// MARK: - Extension: Bulk Delete
-extension LibraryView {
-	private func _bulkDeleteSelectedApps() {
-		let selectedApps = _getAllApps().filter { app in
-			guard let uuid = app.uuid else { return false }
-			return _selectedAppUUIDs.contains(uuid)
+			VStack(alignment: .leading, spacing: 3) {
+				Text(app.name ?? "Unknown")
+					.font(.body.weight(.semibold))
+					.foregroundStyle(.primary)
+					.lineLimit(1)
+				Text(verbatim: app.version ?? "")
+					.font(.caption)
+					.foregroundStyle(.secondary)
+					.lineLimit(1)
+			}
+
+			Spacer()
+
+			_actionPill(app)
 		}
-		
-		for app in selectedApps {
-			Storage.shared.deleteApp(for: app)
-		}
-		
-		_selectedAppUUIDs.removeAll()
-		
-		// _editMode = .inactive
-	}
-	
-	private func _getAllApps() -> [AppInfoPresentable] {
-		var allApps: [AppInfoPresentable] = []
-		
-		if _selectedScope == .all || _selectedScope == .signed {
-			allApps.append(contentsOf: _filteredSignedApps)
-		}
-		
-		if _selectedScope == .all || _selectedScope == .imported {
-			allApps.append(contentsOf: _filteredImportedApps)
-		}
-		
-		return allApps
-	}
-	
-	private func _checkForUpdates() async {
-		let localApps = _signedApps.map { $0 as AppInfoPresentable } + _importedApps.map { $0 as AppInfoPresentable }
-		await updateManager.checkForUpdates(
-			sources: Array(_sources),
-			localApps: localApps
+		.padding(14)
+		.background(
+			RoundedRectangle(cornerRadius: 20, style: .continuous)
+				.fill(Color(uiColor: .secondarySystemGroupedBackground))
 		)
+		.contextMenu {
+			_contextActions(app)
+		}
 	}
-	
-	private func _handleUpdateCheckStateChange(_ isChecking: Bool) {
-		if isChecking {
-			_isUpdateCheckCompleteVisible = false
-			_updateCheckRotation = 0
-			withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
-				_updateCheckRotation = 360
+
+	@ViewBuilder
+	private func _actionPill(_ app: any AppInfoPresentable) -> some View {
+		if let update = updateManager.update(for: app) {
+			WSActionButton(title: "Update") {
+				_startUpdateDownload(update)
+			}
+		} else if app.isSigned {
+			WSActionButton(title: "Open") {
+				UIApplication.openApp(with: app.identifier ?? "")
 			}
 		} else {
-			withAnimation(.none) {
-				_updateCheckRotation = 0
+			WSActionButton(title: "Install", systemImage: "arrow.down.circle") {
+				_selectedSigningAppPresenting = AnyApp(base: app)
 			}
-			
-			_isUpdateCheckCompleteVisible = true
-			Task { @MainActor in
-				try? await Task.sleep(nanoseconds: 900_000_000)
-				if !updateManager.isChecking {
-					_isUpdateCheckCompleteVisible = false
-				}
+		}
+	}
+
+	@ViewBuilder
+	private func _contextActions(_ app: any AppInfoPresentable) -> some View {
+		Button {
+			_selectedInfoAppPresenting = AnyApp(base: app)
+		} label: {
+			Label("Get Info", systemImage: "info.circle")
+		}
+
+		if let update = updateManager.update(for: app) {
+			Button {
+				_startUpdateDownload(update)
+			} label: {
+				Label("Update", systemImage: "arrow.down.circle")
 			}
+		}
+
+		if app.isSigned {
+			Button {
+				UIApplication.openApp(with: app.identifier ?? "")
+			} label: {
+				Label("Open", systemImage: "app.badge.checkmark")
+			}
+			Button {
+				_selectedInstallAppPresenting = AnyApp(base: app)
+			} label: {
+				Label("Install", systemImage: "square.and.arrow.down")
+			}
+			Button {
+				_selectedSigningAppPresenting = AnyApp(base: app)
+			} label: {
+				Label("Re-sign", systemImage: "signature")
+			}
+			Button {
+				_selectedInstallAppPresenting = AnyApp(base: app, archive: true)
+			} label: {
+				Label("Export", systemImage: "square.and.arrow.up")
+			}
+		} else {
+			Button {
+				_selectedInstallAppPresenting = AnyApp(base: app)
+			} label: {
+				Label("Install", systemImage: "square.and.arrow.down")
+			}
+			Button {
+				_selectedSigningAppPresenting = AnyApp(base: app)
+			} label: {
+				Label("Sign", systemImage: "signature")
+			}
+		}
+
+		Divider()
+
+		Button(role: .destructive) {
+			Storage.shared.deleteApp(for: app)
+		} label: {
+			Label("Remove", systemImage: "trash")
+		}
+	}
+
+	private func _emptyCard() -> some View {
+		VStack(spacing: 10) {
+			Image(systemName: "square.stack.3d.up.slash")
+				.font(.system(size: 40))
+				.foregroundStyle(.tint)
+			Text("No Apps Yet")
+				.font(.headline)
+			Text("Import an app or grab one from your sources.")
+				.font(.caption)
+				.foregroundStyle(.secondary)
+		}
+		.frame(maxWidth: .infinity)
+		.padding(.vertical, 36)
+		.background(
+			RoundedRectangle(cornerRadius: 24, style: .continuous)
+				.fill(Color(uiColor: .secondarySystemGroupedBackground).opacity(0.6))
+		)
+	}
+
+	private func _addCard() -> some View {
+		Menu {
+			Button("Import from Files") {
+				_isImportingPresenting = true
+			}
+			Button("Import from URL") {
+				_isDownloadingPresenting = true
+			}
+		} label: {
+			HStack(spacing: 10) {
+				Image(systemName: "plus.circle.fill")
+					.font(.title3)
+					.foregroundStyle(.tint)
+				Text("Add App")
+					.font(.body.weight(.semibold))
+					.foregroundStyle(.tint)
+				Spacer()
+			}
+			.padding(16)
+			.background(
+				RoundedRectangle(cornerRadius: 20, style: .continuous)
+					.fill(Color(uiColor: .secondarySystemGroupedBackground).opacity(0.6))
+					.overlay(
+						RoundedRectangle(cornerRadius: 20, style: .continuous)
+							.strokeBorder(
+								Color(uiColor: .separator).opacity(0.4),
+								style: StrokeStyle(lineWidth: 1.2, dash: [6])
+							)
+					)
+			)
 		}
 	}
 }
 
-// MARK: - Extension: View (Sort)
+// MARK: - Actions
 extension LibraryView {
 	enum Scope: CaseIterable {
 		case all
 		case signed
 		case imported
-		
-		var displayName: String {
-			switch self {
-			case .all: return .localized("All")
-			case .signed: return .localized("Signed")
-			case .imported: return .localized("Imported")
-			}
-		}
+	}
+
+	private func _checkForUpdates() async {
+		let localApps = _signedApps.map { $0 as AppInfoPresentable }
+			+ _importedApps.map { $0 as AppInfoPresentable }
+		await updateManager.checkForUpdates(
+			sources: Array(_sources),
+			localApps: localApps
+		)
+	}
+
+	private func _startUpdateDownload(_ update: AppUpdate) {
+		UIImpactFeedbackGenerator(style: .light).impactOccurred()
+		_ = DownloadManager.shared.startDownload(
+			from: update.downloadURL,
+			id: "SignOsManualUpdate_\(update.localUUID)",
+			sourceProvenance: update.sourceProvenance
+		)
 	}
 }

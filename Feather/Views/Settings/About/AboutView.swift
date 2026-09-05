@@ -84,7 +84,7 @@ struct AboutView: View {
 				.animation(.smooth, value: _handleCopied)
 			}
 
-			NBSection(.localized("Credits")) {
+			NBSection(.localized("Thanks To")) {
 				ForEach(_credits, id: \.github) { credit in
 					_credit(name: credit.name, desc: credit.desc, github: credit.github)
 				}
