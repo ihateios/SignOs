@@ -29,6 +29,7 @@ final class AutoSignManager: ObservableObject {
 		let reason: Reason
 		let appIdentifier: String?
 		let appName: String?
+		var certificate: CertificatePair? = nil
 	}
 
 	@Published private(set) var queue: [Job] = []
@@ -68,7 +69,7 @@ final class AutoSignManager: ObservableObject {
 	// MARK: - Enqueueing
 
 	/// Queues an app for background signing.
-	func enqueue(app: AppInfoPresentable, reason: Reason = .autoSign) {
+	func enqueue(app: AppInfoPresentable, reason: Reason = .autoSign, certificate: CertificatePair? = nil) {
 		guard isAutoSignEnabled else { return }
 		guard let uuid = app.uuid else { return }
 
@@ -76,7 +77,8 @@ final class AutoSignManager: ObservableObject {
 			appUUID: uuid,
 			reason: reason,
 			appIdentifier: app.identifier,
-			appName: app.name
+			appName: app.name,
+			certificate: certificate
 		)
 		enqueue(job: job)
 	}
@@ -123,7 +125,7 @@ final class AutoSignManager: ObservableObject {
 		guard let app = _resolveApp(uuid: job.appUUID) else { return }
 
 		let options = OptionsManager.shared.options
-		let certificate = _certificate(for: app, options: options)
+		let certificate = job.certificate ?? _certificate(for: app, options: options)
 
 		if certificate == nil && options.signingOption == .default {
 			lastErrorMessage = "No valid certificate available for automatic signing."
@@ -215,7 +217,7 @@ final class AutoSignManager: ObservableObject {
 
 		if UIApplication.shared.applicationState == .active {
 			if let url = URL(string: installer.iTunesLink) {
-				UIApplication.shared.open(url)
+				await UIApplication.shared.open(url)
 			}
 		} else if let uuid = app.uuid {
 			AutoUpdateManager.shared.notify(

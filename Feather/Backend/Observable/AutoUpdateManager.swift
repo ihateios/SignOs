@@ -218,7 +218,7 @@ final class AutoUpdateManager: ObservableObject {
 			renewed.insert(uuid)
 			UserDefaults.standard.set(Array(renewed), forKey: Keys.renewedUUIDs)
 
-			AutoSignManager.shared.enqueue(app: app, reason: .renewal)
+			AutoSignManager.shared.enqueue(app: app, reason: .renewal, certificate: replacement)
 		}
 	}
 
