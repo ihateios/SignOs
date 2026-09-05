@@ -160,6 +160,13 @@ final class AutoSignManager: ObservableObject {
 			}
 		}
 
+		switch job.reason {
+		case .renewal:
+			ActivityLog.shared.log(.renewed, app: newest.name ?? identifier)
+		default:
+			ActivityLog.shared.log(.updated, app: newest.name ?? identifier, detail: newest.version)
+		}
+
 		await _attemptSilentInstall(newest)
 	}
 
@@ -187,6 +194,8 @@ final class AutoSignManager: ObservableObject {
 				let proxy = InstallationProxy(viewModel: viewModel)
 				try await proxy.install(at: packageUrl, suspend: false)
 
+				ActivityLog.shared.log(.installed, app: app.name ?? "App")
+
 				AutoUpdateManager.shared.notify(
 					title: "Installed \(app.name ?? "App")",
 					body: "The app is ready on your home screen.",
@@ -197,6 +206,7 @@ final class AutoSignManager: ObservableObject {
 			}
 		} catch {
 			lastErrorMessage = error.localizedDescription
+			ActivityLog.shared.log(.failed, app: app.name ?? "App", detail: error.localizedDescription)
 			AutoUpdateManager.shared.notify(
 				title: "Couldn't Install \(app.name ?? "App")",
 				body: "Open SignOs to try again.",
@@ -218,6 +228,7 @@ final class AutoSignManager: ObservableObject {
 		if UIApplication.shared.applicationState == .active {
 			if let url = URL(string: installer.iTunesLink) {
 				await UIApplication.shared.open(url)
+				ActivityLog.shared.log(.installed, app: app.name ?? "App", detail: "install prompt shown")
 			}
 		} else if let uuid = app.uuid {
 			AutoUpdateManager.shared.notify(

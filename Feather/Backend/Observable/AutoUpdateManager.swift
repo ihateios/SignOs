@@ -10,6 +10,7 @@
 import Foundation
 import CoreData
 import Network
+import UIKit
 import UserNotifications
 import BackgroundTasks
 import AltSourceKit
@@ -142,8 +143,9 @@ final class AutoUpdateManager: ObservableObject {
 
 	// MARK: - Checking
 
-	func checkNow(notifyWhenClean: Bool = true) async {
-		guard !isAutoChecking else { return }
+	@discardableResult
+	func checkNow(notifyWhenClean: Bool = true) async -> Int {
+		guard !isAutoChecking else { return UpdateManager.shared.updates.count }
 		isAutoChecking = true
 		defer {
 			isAutoChecking = false
@@ -161,7 +163,10 @@ final class AutoUpdateManager: ObservableObject {
 		let updates = UpdateManager.shared.updates.values
 			.sorted { $0.appName.localizedCaseInsensitiveCompare($1.appName) == .orderedAscending }
 
+		ActivityLog.shared.log(.checked, app: "SignOs", detail: updates.isEmpty ? "all apps up to date" : "\(updates.count) found")
+
 		if updates.isEmpty {
+			_updateBadge(0)
 			if notifyWhenClean {
 				notify(
 					title: "All Apps Up to Date",
@@ -169,8 +174,10 @@ final class AutoUpdateManager: ObservableObject {
 					identifier: "signos.updates.clean"
 				)
 			}
-			return
+			return 0
 		}
+
+		_updateBadge(updates.count)
 
 		if !isAutoUpdateEnabled {
 			notify(
@@ -180,12 +187,15 @@ final class AutoUpdateManager: ObservableObject {
 					: "\(updates.count) apps have new versions available.",
 				identifier: "signos.updates.available"
 			)
-			return
+			return updates.count
 		}
+
+		let disabledSourceURLs = _disabledSourceURLs()
 
 		var started = 0
 		for update in updates {
 			guard isAutoUpdateEnabled(for: update.bundleIdentifier) else { continue }
+			guard !_matchesDisabledSource(update.sourceURL, disabled: disabledSourceURLs) else { continue }
 			let jobId = "\(Self.autoDownloadPrefix)_\(update.localUUID)"
 			guard DownloadManager.shared.getDownload(by: jobId) == nil else { continue }
 
@@ -194,6 +204,7 @@ final class AutoUpdateManager: ObservableObject {
 				id: jobId,
 				sourceProvenance: update.sourceProvenance
 			)
+			ActivityLog.shared.log(.downloaded, app: update.appName)
 			started += 1
 		}
 
@@ -206,6 +217,64 @@ final class AutoUpdateManager: ObservableObject {
 				identifier: "signos.updates.downloading"
 			)
 		}
+
+		return updates.count
+	}
+
+	private func _updateBadge(_ count: Int) {
+		let enabled = UserDefaults.standard.object(forKey: "SignOs.badgeUpdates") as? Bool ?? false
+		UIApplication.shared.applicationIconBadgeNumber = enabled ? min(max(count, 0), 99) : 0
+	}
+
+	// MARK: - Per-source rules
+
+	func isSourceAutoUpdateEnabled(_ source: AltSource) -> Bool {
+		let overrides = UserDefaults.standard.dictionary(forKey: "SignOs.sourceAutoUpdate") as? [String: Bool] ?? [:]
+		return overrides[source.identifier ?? ""] ?? true
+	}
+
+	func setSourceAutoUpdate(_ enabled: Bool, for source: AltSource) {
+		var overrides = UserDefaults.standard.dictionary(forKey: "SignOs.sourceAutoUpdate") as? [String: Bool] ?? [:]
+		overrides[source.identifier ?? ""] = enabled
+		UserDefaults.standard.set(overrides, forKey: "SignOs.sourceAutoUpdate")
+	}
+
+	private func _disabledSourceURLs() -> Set<String> {
+		let overrides = UserDefaults.standard.dictionary(forKey: "SignOs.sourceAutoUpdate") as? [String: Bool] ?? [:]
+		return Set(
+			_fetchSources()
+				.filter { overrides[$0.identifier ?? ""] == false }
+				.compactMap { $0.sourceURL?.absoluteString }
+		)
+	}
+
+	private func _matchesDisabledSource(_ url: URL, disabled: Set<String>) -> Bool {
+		var string = url.absoluteString
+		if string.hasSuffix("/") {
+			string = String(string.dropLast())
+		}
+		return disabled.contains(string)
+	}
+
+	// MARK: - Shortcuts
+
+	/// Downloads every pending update through the automatic pipeline.
+	func downloadAllPendingUpdates() async -> Int {
+		await checkNow(notifyWhenClean: false)
+
+		var started = 0
+		for update in UpdateManager.shared.updates.values {
+			let jobId = "\(Self.autoDownloadPrefix)_\(update.localUUID)"
+			guard DownloadManager.shared.getDownload(by: jobId) == nil else { continue }
+
+			_ = DownloadManager.shared.startDownload(
+				from: update.downloadURL,
+				id: jobId,
+				sourceProvenance: update.sourceProvenance
+			)
+			started += 1
+		}
+		return started
 	}
 
 	// MARK: - Per-app auto-update

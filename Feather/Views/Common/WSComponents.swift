@@ -164,3 +164,36 @@ extension View {
 			}
 	}
 }
+
+// MARK: - Download speed sampler
+
+final class WSSpeedometer {
+	private var lastBytes: Int64 = 0
+	private var lastDate = Date()
+	public private(set) var speed: Double = 0
+
+	func sample(_ bytes: Int64) -> Double {
+		let now = Date()
+		let elapsed = now.timeIntervalSince(lastDate)
+		if elapsed >= 0.5, bytes > lastBytes {
+			speed = Double(bytes - lastBytes) / elapsed
+			lastBytes = bytes
+			lastDate = now
+		}
+		return speed
+	}
+}
+
+extension Double {
+	var formattedSpeed: String {
+		guard self > 0 else { return "" }
+		return ByteCountFormatter.string(fromByteCount: Int64(self), countStyle: .file) + "/s"
+	}
+
+	var formattedEta: String {
+		guard self.isFinite, self > 0 else { return "" }
+		let seconds = Int(self)
+		if seconds < 60 { return "\(seconds)s left" }
+		return "\(seconds / 60)m \(seconds % 60)s left"
+	}
+}

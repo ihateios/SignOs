@@ -15,6 +15,7 @@ import NimbleViews
 struct DiscoverView: View {
 	@StateObject private var viewModel = SourcesViewModel.shared
 	@State private var _isAddingPresenting = false
+	@State private var _autoSourceOverrides: [String: Bool] = [:]
 
 	@FetchRequest(
 		entity: AltSource.entity(),
@@ -76,6 +77,7 @@ struct DiscoverView: View {
 		}
 		.task(id: Array(_sources)) {
 			await viewModel.fetchSources(_sources)
+			_autoSourceOverrides = UserDefaults.standard.dictionary(forKey: "SignOs.sourceAutoUpdate") as? [String: Bool] ?? [:]
 		}
 	}
 }
@@ -202,7 +204,8 @@ extension DiscoverView {
 	}
 
 	private func _sourceCard(_ source: AltSource) -> some View {
-		HStack(spacing: 14) {
+		let autoEnabled = _autoSourceOverrides[source.identifier ?? ""] ?? true
+		return HStack(spacing: 14) {
 			WSAppIcon(url: source.iconURL, size: 48, cornerRadius: 11)
 
 			VStack(alignment: .leading, spacing: 2) {
@@ -210,9 +213,12 @@ extension DiscoverView {
 					.font(.body.weight(.semibold))
 					.foregroundStyle(.primary)
 					.lineLimit(1)
-				Text(verbatim: _appCount(source))
+				Text(verbatim: autoEnabled
+					? _appCount(source)
+					: "\(_appCount(source)) • Auto-Updates Off")
 					.font(.caption)
 					.foregroundStyle(.secondary)
+					.lineLimit(1)
 			}
 
 			Spacer()
@@ -226,6 +232,27 @@ extension DiscoverView {
 			RoundedRectangle(cornerRadius: 20, style: .continuous)
 				.fill(Color(uiColor: .secondarySystemGroupedBackground))
 		)
+		.contextMenu {
+			Button {
+				let identifier = source.identifier ?? ""
+				let now = !(_autoSourceOverrides[identifier] ?? true)
+				_autoSourceOverrides[identifier] = now
+				AutoUpdateManager.shared.setSourceAutoUpdate(now, for: source)
+			} label: {
+				Label(
+					autoEnabled ? "Disable Auto-Updates" : "Enable Auto-Updates",
+					systemImage: "automatic"
+				)
+			}
+
+			Divider()
+
+			Button(role: .destructive) {
+				Storage.shared.deleteSource(for: source)
+			} label: {
+				Label("Remove Source", systemImage: "trash")
+			}
+		}
 	}
 
 	private func _emptyCard() -> some View {

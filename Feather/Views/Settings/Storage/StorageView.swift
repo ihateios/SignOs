@@ -21,6 +21,12 @@ struct StorageView: View {
 		animation: .snappy
 	) private var _signedApps: FetchedResults<Signed>
 
+	@FetchRequest(
+		entity: Imported.entity(),
+		sortDescriptors: [NSSortDescriptor(keyPath: \Imported.date, ascending: false)],
+		animation: .snappy
+	) private var _importedApps: FetchedResults<Imported>
+
 	enum Category: String, CaseIterable {
 		case archives = "Archives"
 		case certificates = "Certificates"
@@ -67,6 +73,17 @@ struct StorageView: View {
 						Label(.localized("Clear Archives"), systemImage: "archivebox")
 					}
 					.disabled(_isCleaning || (_sizes[.archives] ?? 0) == 0)
+				}
+
+				NBSection(.localized("Duplicates")) {
+					Button {
+						_cleanDuplicates()
+					} label: {
+						Label(.localized("Remove Imported Duplicates"), systemImage: "square.stack.3d.up.slash")
+					}
+					.disabled(_isCleaning || _duplicateCount == 0)
+				} footer: {
+					Text(.localized("Imported copies of apps that already have an installed version."))
 				}
 
 				if let message = _cleanedMessage {
@@ -134,6 +151,35 @@ extension StorageView {
 			}
 		}
 		return total
+	}
+
+	private var _duplicateCount: Int {
+		let installedIdentifiers = Set(_signedApps.compactMap { $0.identifier })
+		return _importedApps.filter { imported in
+			guard let identifier = imported.identifier else { return false }
+			return installedIdentifiers.contains(identifier)
+		}.count
+	}
+
+	private func _cleanDuplicates() {
+		UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+		_isCleaning = true
+
+		let installedIdentifiers = Set(_signedApps.compactMap { $0.identifier })
+		var removed = 0
+		for imported in _importedApps {
+			guard let identifier = imported.identifier else { continue }
+			if installedIdentifiers.contains(identifier) {
+				Storage.shared.deleteApp(for: imported)
+				removed += 1
+			}
+		}
+
+		_isCleaning = false
+		_cleanedMessage = removed == 0
+			? .localized("Nothing to clean up.")
+			: .localized("Removed %lld imported duplicates.", arguments: removed)
+		_refreshSizes()
 	}
 
 	private func _cleanSuperseded() {

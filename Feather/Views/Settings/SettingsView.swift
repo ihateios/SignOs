@@ -32,6 +32,7 @@ struct SettingsView: View {
 	@AppStorage("feather.selectedCert") private var _storedSelectedCert: Int = 0
 	@AppStorage("SignOs.autoDeleteOldVersions") private var _autoDeleteOldVersions: Bool = true
 	@AppStorage("SignOs.biometricLock") private var _biometricLock: Bool = false
+	@AppStorage("SignOs.badgeUpdates") private var _badgeUpdates: Bool = false
 	@StateObject private var autoUpdateManager = AutoUpdateManager.shared
 	@StateObject private var autoSignManager = AutoSignManager.shared
 
@@ -197,6 +198,14 @@ extension SettingsView {
 				}
 			}
 			.tint(.accentColor)
+
+			Toggle(isOn: _badgeUpdates) {
+				HStack(spacing: 12) {
+					WSIconTile(systemImage: "app.badge.fill", color: .mint)
+					Text(.localized("Badge App Icon"))
+				}
+			}
+			.tint(.accentColor)
 		} header: {
 			Text(.localized("Automation"))
 		} footer: {
@@ -228,6 +237,27 @@ extension SettingsView {
 				HStack(spacing: 12) {
 					WSIconTile(systemImage: "internaldrive.fill", color: .blue)
 					Text(.localized("Storage"))
+				}
+			}
+
+			NavigationLink(destination: ActivityView()) {
+				HStack(spacing: 12) {
+					WSIconTile(systemImage: "clock.arrow.circlepath", color: .indigo)
+					Text(.localized("Activity"))
+				}
+			}
+
+			NavigationLink(destination: CertHealthView()) {
+				HStack(spacing: 12) {
+					WSIconTile(systemImage: "stethoscope", color: .red)
+					Text(.localized("Certificate Health"))
+				}
+			}
+
+			NavigationLink(destination: BackupRestoreView()) {
+				HStack(spacing: 12) {
+					WSIconTile(systemImage: "arrow.up.arrow.down.square.fill", color: .brown)
+					Text(.localized("Backup & Restore"))
 				}
 			}
 		} header: {

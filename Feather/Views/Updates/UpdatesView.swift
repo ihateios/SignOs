@@ -240,7 +240,7 @@ extension UpdatesView {
 				}
 
 				ForEach(downloadManager.downloads, id: \.id) { download in
-					_downloadCard(download)
+					WSDownloadCard(download: download)
 				}
 			}
 		}
@@ -277,39 +277,7 @@ extension UpdatesView {
 	}
 
 	private func _downloadCard(_ download: Download) -> some View {
-		VStack(alignment: .leading, spacing: 8) {
-			HStack(spacing: 10) {
-				Image(systemName: "arrow.down.circle.fill")
-					.font(.title3)
-					.foregroundStyle(.tint)
-					.symbolRenderingMode(.hierarchical)
-
-				Text(download.fileName)
-					.font(.footnote.weight(.semibold))
-					.lineLimit(1)
-
-				Spacer()
-
-				Text(verbatim: "\(Int(download.overallProgress * 100))%")
-					.font(.caption.weight(.semibold).monospacedDigit())
-					.foregroundStyle(.secondary)
-					.contentTransition(.numericText())
-			}
-
-			ProgressView(value: download.overallProgress)
-				.progressViewStyle(.linear)
-
-			if download.totalBytes > 0 {
-				Text(verbatim: download.totalBytes.formattedByteCount)
-					.font(.caption2)
-					.foregroundStyle(.tertiary)
-			}
-		}
-		.padding(14)
-		.background(
-			RoundedRectangle(cornerRadius: 20, style: .continuous)
-				.fill(Color(uiColor: .secondarySystemGroupedBackground))
-		)
+		WSDownloadCard(download: download)
 	}
 
 	@ViewBuilder
@@ -416,6 +384,68 @@ extension UpdatesView {
 				id: "SignOsManualUpdate_\(update.localUUID)",
 				sourceProvenance: update.sourceProvenance
 			)
+		}
+	}
+}
+
+// MARK: - Download card (isolated state for speed sampling)
+struct WSDownloadCard: View {
+	let download: Download
+
+	@State private var _speedometer = WSSpeedometer()
+	@State private var _speedText = ""
+	@State private var _etaText = ""
+
+	var body: some View {
+		VStack(alignment: .leading, spacing: 8) {
+			HStack(spacing: 10) {
+				Image(systemName: "arrow.down.circle.fill")
+					.font(.title3)
+					.foregroundStyle(.tint)
+					.symbolRenderingMode(.hierarchical)
+
+				Text(download.fileName)
+					.font(.footnote.weight(.semibold))
+					.lineLimit(1)
+
+				Spacer()
+
+				Text(verbatim: "\(Int(download.overallProgress * 100))%")
+					.font(.caption.weight(.semibold).monospacedDigit())
+					.foregroundStyle(.secondary)
+					.contentTransition(.numericText())
+			}
+
+			ProgressView(value: download.overallProgress)
+				.progressViewStyle(.linear)
+
+			HStack(spacing: 6) {
+				if download.totalBytes > 0 {
+					Text(verbatim: download.totalBytes.formattedByteCount)
+				}
+				if !_speedText.isEmpty {
+					Text(verbatim: "• \(_speedText)")
+				}
+				if !_etaText.isEmpty {
+					Text(verbatim: "• \(_etaText)")
+				}
+			}
+			.font(.caption2)
+			.foregroundStyle(.tertiary)
+		}
+		.padding(14)
+		.background(
+			RoundedRectangle(cornerRadius: 20, style: .continuous)
+				.fill(Color(uiColor: .secondarySystemGroupedBackground))
+		)
+		.onReceive(download.$bytesDownloaded) { bytes in
+			let speed = _speedometer.sample(bytes)
+			_speedText = speed.formattedSpeed
+			if speed > 0, download.totalBytes > bytes {
+				_etaText = (Double(download.totalBytes - bytes) / speed).formattedEta
+			} else {
+				_etaText = ""
+			}
 		}
 	}
 }

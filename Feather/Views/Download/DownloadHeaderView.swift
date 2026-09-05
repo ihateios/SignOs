@@ -55,6 +55,9 @@ struct DownloadItemView: View {
 	@State private var bytesDownloaded: Int64 = 0
 	@State private var totalBytes: Int64 = 0
 	@State private var unpackageProgress: Double = 0
+	@State private var _speedometer = WSSpeedometer()
+	@State private var _speedText = ""
+	@State private var _etaText = ""
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 6) {
@@ -80,14 +83,31 @@ struct DownloadItemView: View {
 				.progressViewStyle(.linear)
 				.tint(.accentColor)
 
-			if totalBytes > 0 {
-				Text(verbatim: "\($bytesDownloaded.wrappedValue.formattedByteCount) of \(totalBytes.formattedByteCount)")
-					.font(.caption2)
-					.foregroundStyle(.tertiary)
+			HStack(spacing: 6) {
+				if totalBytes > 0 {
+					Text(verbatim: "\(bytesDownloaded.formattedByteCount) of \(totalBytes.formattedByteCount)")
+				}
+				if !_speedText.isEmpty {
+					Text(verbatim: "• \(_speedText)")
+				}
+				if !_etaText.isEmpty {
+					Text(verbatim: "• \(_etaText)")
+				}
 			}
+			.font(.caption2)
+			.foregroundStyle(.tertiary)
 		}
 		.onReceive(download.$progress) { self.progress = $0 }
-		.onReceive(download.$bytesDownloaded) { self.bytesDownloaded = $0 }
+		.onReceive(download.$bytesDownloaded) {
+			self.bytesDownloaded = $0
+			let speed = _speedometer.sample($0)
+			_speedText = speed.formattedSpeed
+			if speed > 0, totalBytes > $0 {
+				_etaText = (Double(totalBytes - $0) / speed).formattedEta
+			} else {
+				_etaText = ""
+			}
+		}
 		.onReceive(download.$totalBytes) { self.totalBytes = $0 }
 		.onReceive(download.$unpackageProgress) { self.unpackageProgress = $0 }
 	}
