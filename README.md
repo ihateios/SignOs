@@ -4,62 +4,87 @@
 
 # SignOs
 
-**An on-device signing store with App Store-style automatic updates.**
+**The on-device signing store. Automatic updates. Background signing. Zero effort.**
 
 Made By **@ihateios**
+
+[Telegram @ihateios](https://t.me/ihateios) · [Releases](../../releases)
 
 </div>
 
 ---
 
-## What is SignOs
+## About
 
-SignOs signs and installs applications on-device using your own certificates, and then keeps
-them running like App Store apps:
+SignOs is an **on-device signing store for iOS** — built by **@ihateios** on top of the
+open-source [Feather](https://github.com/claration/Feather) project.
 
-- **Automatic Updates** — SignOs periodically checks your repositories. When an app you have
-  installed gets a new version, it is downloaded, signed and prepared silently in the
-  background. Installations through a paired device (tunnel method) are applied with zero
-  interaction.
-- **Background Auto-Signing** — every imported or downloaded app is signed automatically in
-  a serial signing queue, with the app's existing certificate when it is still valid so app
-  data is preserved across updates.
-- **Certificate Renewal** — apps are re-signed automatically before their certificate
-  expires or if it gets revoked, using the healthiest certificate available. Set how many
-  days ahead in Settings.
-- **Updates Tab** — an App Store-style surface with available updates, the live signing
-  queue, active downloads, recently updated apps, Update All, and per-app auto-update
-  controls (swipe on any update row).
-- **Liquid Glass UI** — clean App Store-grade interface; on iOS 26 buttons, cards and pills
-  use the system Liquid Glass materials.
-- **Per-App Controls** — global and per-app auto-update toggles, local notifications for
-  found updates, finished signing and renewals, background refresh scheduling.
-- Full signing options (PPQ protection, Liquid Glass patching, appearance, injection,
-  Ellekit), AltStore-compatible sources, certificates management, and more — inherited from
-  the excellent open-source [Feather](https://github.com/claration/Feather) project by
-  [claration](https://github.com/claration) and contributors.
+SignOs is owned and developed by @ihateios. Feather's developers do not own or maintain
+SignOs — but **huge thanks to them for their incredible work**; SignOs stands on their shoulders.
+
+## Features
+
+### Automatic updates — like the App Store
+- Silent background update checks on your schedule (hourly → daily)
+- Updates download, sign and install themselves — no interaction needed
+- Auto-fire install prompts, "Tap to install" notifications with inline **Install** action
+- Fully silent installs with the paired-device (tunnel) method
+- Wi-Fi only and Night-only download windows
+- Per-app **and** per-source auto-update rules, Skip This Version and Hold Updates
+- Live in-place download progress notifications with speed and ETA
+- Update All, Recently Updated, and an App Store-style Updates tab
+- Optional home-screen badge for pending updates
+
+### Background signing engine
+- Serial signing queue — every import or download is signed automatically
+- Updates keep the app's existing certificate so **app data always survives**
+- **Keep Apps Signed**: apps are re-signed automatically before certificates expire,
+  using the healthiest certificate available
+- Certificate Health dashboard with expiry rings and one-tap Renew All
+- Reinstall Everything — requeue your whole library in one tap
+
+### A real store experience
+- **Discover** — App Store "Today"-style page with featured apps and source cards
+- **Search** — unified search across every source with recent searches
+- **Library** — card-based app library with search, filters and quick actions
+- **Updates** — available updates, live queue, activity, recently updated
+- Rich app pages: screenshots, What's New, version history, permissions
+- Liquid Glass materials on iOS 26, clean Apple-grade design throughout
+
+### Power & privacy
+- Activity timeline — see everything SignOs did, and when
+- Storage manager — usage per category, remove superseded copies and duplicates
+- Backup & Restore — export and re-import sources + preferences
+- Face ID Lock
+- Shortcuts app actions: *Check for Updates*, *Install Pending Updates*
+- Tweak injection (`.deb` / `.dylib` via ElleKit), PPQ protection, Liquid Glass patching
+- Full certificate management, AltStore-compatible sources, `signos://` URL scheme
 
 ## Install
 
-Download the latest unsigned `SignOs.ipa` from
-[Releases](../../releases) (or the **SignOs-ipa** build artifact on any commit) and sign it
-with the tool of your choice — SignOs itself, SideStore, Sideloadly, or TrollStore.
-
-Then add sources, import a certificate, and toggle **Update Automatically** in the Updates
-tab. That is it.
+Grab `SignOs.ipa` from [Releases](../../releases) (or the artifact of any build) and sign it
+with SignOs, SideStore, Sideloadly, AltStore or TrollStore. Every push to `main` builds a
+fresh IPA automatically; `v*` tags publish releases.
 
 ## Building
 
 ```bash
-make iphoneos      # produces packages/SignOs.ipa (unsigned)
+make iphoneos      # produces packages/SignOs.ipa
 ```
 
-Requirements: Xcode 26+ on macOS. CI builds run automatically via GitHub Actions.
+Requires Xcode 26+ on macOS. CI builds run automatically via GitHub Actions.
+
+## Contact
+
+Questions, feature requests, inquiries: **[Telegram @ihateios](https://t.me/ihateios)**
 
 ## Credits
 
-- [claration](https://github.com/claration) — Feather, the foundation of SignOs
-- [Nyasami](https://github.com/Nyasami) — Feather
+SignOs is owned and developed by **@ihateios**, built over the open-source
+[Feather](https://github.com/claration/Feather) project. Special thanks to:
+
+- [claration](https://github.com/claration) — Feather creator
+- [Nyasami](https://github.com/Nyasami) — Feather developer
 - [llsc12](https://github.com/llsc12) — AltStore repositories support
 
-SignOs is an independent rebrand and extension of Feather, released under the same license.
+Thank you for the foundation.
