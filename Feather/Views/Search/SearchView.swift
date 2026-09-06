@@ -195,7 +195,7 @@ extension SearchView {
 
 								Spacer()
 
-								DownloadButtonView(
+								WSOneViewGetButton(
 									sourceURL: item.source.sourceURL,
 									source: item.repository,
 									app: item.app

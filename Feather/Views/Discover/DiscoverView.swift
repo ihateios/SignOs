@@ -100,7 +100,7 @@ extension DiscoverView {
 						} label: {
 							_featuredCard(item)
 						}
-						.buttonStyle(.plain)
+						.buttonStyle(.borderless)
 					}
 				}
 			}
@@ -127,7 +127,7 @@ extension DiscoverView {
 				.foregroundStyle(.secondary)
 				.lineLimit(1)
 
-			DownloadButtonView(
+			WSOneViewGetButton(
 				sourceURL: item.source.sourceURL,
 				source: item.repository,
 				app: item.app
