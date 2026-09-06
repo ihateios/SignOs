@@ -159,6 +159,7 @@ enum FR {
 	
 	static func handleSource(
 		_ urlString: String,
+		silent: Bool = false,
 		competion: @escaping () -> Void
 	) {
 		guard let url = URL(string: urlString) else { return }
@@ -172,14 +173,16 @@ enum FR {
 					Storage.shared.addSource(url, repository: data, id: id) { _ in
 						competion()
 					}
-				} else {
+				} else if !silent {
 					DispatchQueue.main.async {
 						UIAlertController.showAlertWithOk(title: .localized("Error"), message: .localized("Repository already added."))
 					}
 				}
 			case .failure(let error):
-				DispatchQueue.main.async {
-					UIAlertController.showAlertWithOk(title: .localized("Error"), message: error.localizedDescription)
+				if !silent {
+					DispatchQueue.main.async {
+						UIAlertController.showAlertWithOk(title: .localized("Error"), message: error.localizedDescription)
+					}
 				}
 			}
 		}
