@@ -38,6 +38,11 @@ jobs:
           xcodebuild -version
           xcodebuild -showsdks | grep -E "iphoneos"
 
+      - name: Set marketing version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          agvtool new-marketing-version "${GITHUB_REF_NAME#v}"
+
       - name: Set build number
         run: |
           agvtool new-version -all "$(git rev-parse --short HEAD)"

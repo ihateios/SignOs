@@ -30,6 +30,7 @@ final class AutoSignManager: ObservableObject {
 		let appIdentifier: String?
 		let appName: String?
 		var certificate: CertificatePair? = nil
+		var options: Options? = nil
 	}
 
 	@Published private(set) var queue: [Job] = []
@@ -69,8 +70,14 @@ final class AutoSignManager: ObservableObject {
 	// MARK: - Enqueueing
 
 	/// Queues an app for background signing.
-	func enqueue(app: AppInfoPresentable, reason: Reason = .autoSign, certificate: CertificatePair? = nil) {
-		guard isAutoSignEnabled else { return }
+	func enqueue(
+		app: AppInfoPresentable,
+		reason: Reason = .autoSign,
+		certificate: CertificatePair? = nil,
+		options: Options? = nil,
+		force: Bool = false
+	) {
+		guard force || isAutoSignEnabled else { return }
 		guard let uuid = app.uuid else { return }
 
 		let job = Job(
@@ -78,9 +85,24 @@ final class AutoSignManager: ObservableObject {
 			reason: reason,
 			appIdentifier: app.identifier,
 			appName: app.name,
-			certificate: certificate
+			certificate: certificate,
+			options: options
 		)
 		enqueue(job: job)
+	}
+
+	/// Clones an app: same app, new identity, parallel install.
+	func cloneApp(app: AppInfoPresentable) {
+		var options = OptionsManager.shared.options
+		let base = app.identifier ?? UUID().uuidString
+		options.appIdentifier = "\(base).clone\(Int.random(in: 100...999))"
+		options.appName = "\(app.name ?? "App") \(Int.random(in: 2...9))"
+		options.signingOption = .default
+
+		let certificate = Storage.shared.getCertificate(from: app)
+			?? _certificate(for: app, options: options)
+
+		enqueue(app: app, reason: .autoSign, certificate: certificate, options: options, force: true)
 	}
 
 	/// Resolves an imported app by uuid and queues it. Safe to call for
@@ -124,7 +146,7 @@ final class AutoSignManager: ObservableObject {
 	private func _process(_ job: Job) async {
 		guard let app = _resolveApp(uuid: job.appUUID) else { return }
 
-		let options = OptionsManager.shared.options
+		let options = job.options ?? OptionsManager.shared.options
 		let certificate = job.certificate ?? _certificate(for: app, options: options)
 
 		if certificate == nil && options.signingOption == .default {
@@ -137,10 +159,24 @@ final class AutoSignManager: ObservableObject {
 			return
 		}
 
+		var signingError: Error?
 		await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-			FR.signPackageFile(app, using: options, icon: nil, certificate: certificate) { _ in
+			FR.signPackageFile(app, using: options, icon: nil, certificate: certificate) { error in
+				signingError = error
 				continuation.resume()
 			}
+		}
+
+		if let signingError {
+			lastErrorMessage = signingError.localizedDescription
+			ActivityLog.shared.log(.failed, app: job.appName ?? "App", detail: signingError.localizedDescription)
+			AutoUpdateManager.shared.notify(
+				title: "Couldn't Install \(job.appName ?? "App")",
+				body: "Open SignOs and try again.",
+				identifier: "signos.failed.\(job.appUUID)"
+			)
+			AutoUpdateManager.shared.updateBadgeFromState()
+			return
 		}
 
 		guard let identifier = job.appIdentifier ?? app.identifier else { return }
@@ -178,6 +214,7 @@ final class AutoSignManager: ObservableObject {
 		}
 
 		await _attemptSilentInstall(newest)
+		AutoUpdateManager.shared.updateBadgeFromState()
 	}
 
 	// MARK: - Install

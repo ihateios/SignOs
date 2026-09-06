@@ -144,7 +144,7 @@ final class AutoUpdateManager: ObservableObject {
 	// MARK: - Checking
 
 	@discardableResult
-	func checkNow(notifyWhenClean: Bool = true) async -> Int {
+	func checkNow(notifyWhenClean: Bool = true, silent: Bool = false) async -> Int {
 		guard !isAutoChecking else { return UpdateManager.shared.updates.count }
 		isAutoChecking = true
 		defer {
@@ -167,7 +167,7 @@ final class AutoUpdateManager: ObservableObject {
 
 		if updates.isEmpty {
 			_updateBadge(0)
-			if notifyWhenClean {
+			if notifyWhenClean && !silent {
 				notify(
 					title: "All Apps Up to Date",
 					body: "Every app matches the latest version in its repository.",
@@ -180,6 +180,7 @@ final class AutoUpdateManager: ObservableObject {
 		_updateBadge(updates.count)
 
 		if !isAutoUpdateEnabled {
+			if silent { return updates.count }
 			let body: String
 			if
 				updates.count == 1,
@@ -231,6 +232,11 @@ final class AutoUpdateManager: ObservableObject {
 	private func _updateBadge(_ count: Int) {
 		let enabled = UserDefaults.standard.object(forKey: "SignOs.badgeUpdates") as? Bool ?? false
 		UIApplication.shared.applicationIconBadgeNumber = enabled ? min(max(count, 0), 99) : 0
+	}
+
+	/// Recomputes the app-icon badge from current pending updates.
+	func updateBadgeFromState() {
+		_updateBadge(UpdateManager.shared.updates.count)
 	}
 
 	// MARK: - Per-source rules
@@ -390,7 +396,7 @@ final class AutoUpdateManager: ObservableObject {
 			using: nil
 		) { task in
 			Task { @MainActor in
-				await AutoUpdateManager.shared.checkNow(notifyWhenClean: false)
+				await AutoUpdateManager.shared.checkNow(notifyWhenClean: false, silent: true)
 				AutoUpdateManager.shared.scheduleBackgroundRefresh()
 				task.setTaskCompleted(success: true)
 			}

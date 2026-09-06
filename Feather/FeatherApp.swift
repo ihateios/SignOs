@@ -181,6 +181,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 		_createDocumentsDirectories()
 		ResetView.clearWorkCache()
 		_addDefaultCertificates()
+		_addDefaultSource()
 
 		UNUserNotificationCenter.current().delegate = self
 
@@ -256,6 +257,13 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 		}
 	}
 	
+	/// Ships with the SignOs repository so the app can update itself.
+	private func _addDefaultSource() {
+		guard UserDefaults.standard.bool(forKey: "SignOs.didAddDefaultSource") == false else { return }
+		UserDefaults.standard.set(true, forKey: "SignOs.didAddDefaultSource")
+		FR.handleSource("https://raw.githubusercontent.com/ihateios/SignOs/main/app-repo.json", silent: true) { }
+	}
+
 	private func _addDefaultCertificates() {
 		guard
 			UserDefaults.standard.bool(forKey: "feather.didImportDefaultCertificates") == false,

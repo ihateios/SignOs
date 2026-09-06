@@ -13,6 +13,7 @@ import NimbleViews
 struct LibraryView: View {
 	@StateObject var downloadManager = DownloadManager.shared
 	@StateObject var updateManager = UpdateManager.shared
+	@ObservedObject private var autoSignManager = AutoSignManager.shared
 
 	@State private var _selectedInfoAppPresenting: AnyApp?
 	@State private var _selectedSigningAppPresenting: AnyApp?
@@ -250,8 +251,13 @@ extension LibraryView {
 				UIApplication.openApp(with: app.identifier ?? "")
 			}
 		} else {
-			WSActionButton(title: "Install", systemImage: "arrow.down.circle") {
-				_selectedSigningAppPresenting = AnyApp(base: app)
+			WSActionButton(title: "Get", systemImage: "arrow.down.circle") {
+				if autoSignManager.isAutoSignEnabled {
+					UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+					AutoSignManager.shared.enqueue(app: app, reason: .autoSign)
+				} else {
+					_selectedSigningAppPresenting = AnyApp(base: app)
+				}
 			}
 		}
 	}
@@ -289,6 +295,12 @@ extension LibraryView {
 				Label("Re-sign", systemImage: "signature")
 			}
 			Button {
+				UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+				AutoSignManager.shared.cloneApp(app: app)
+			} label: {
+			Label("Clone App", systemImage: "plus.square.on.square")
+			}
+			Button {
 				_selectedInstallAppPresenting = AnyApp(base: app, archive: true)
 			} label: {
 				Label("Export", systemImage: "square.and.arrow.up")
@@ -303,6 +315,12 @@ extension LibraryView {
 				_selectedSigningAppPresenting = AnyApp(base: app)
 			} label: {
 				Label("Sign", systemImage: "signature")
+			}
+			Button {
+				UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+				AutoSignManager.shared.cloneApp(app: app)
+			} label: {
+			Label("Clone App", systemImage: "plus.square.on.square")
 			}
 		}
 
