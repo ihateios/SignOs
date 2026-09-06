@@ -4,87 +4,105 @@
 
 # SignOs
 
-**The on-device signing store. Automatic updates. Background signing. Zero effort.**
+The on-device signing store for iOS. Your apps update themselves, signing happens in
+the background, and you never think about certificates again.
 
-Made By **@ihateios**
+Made By [@ihateios](https://t.me/ihateios)
 
-[Telegram @ihateios](https://t.me/ihateios) · [Releases](../../releases)
+[Download latest](../../releases/latest) · [Telegram](https://t.me/ihateios)
 
 </div>
 
----
+SignOs is an iOS app I built that signs, installs and updates other apps on your device,
+the same way the App Store does it. Tap Get on any app from a repository and that's it —
+it downloads in the background, signs itself, installs, and shows up on your home screen.
 
-## About
+It's built on top of the open source [Feather](https://github.com/claration/Feather) project.
+SignOs is owned and developed by me, @ihateios — huge thanks to clARATION and the Feather
+contributors for their work, this wouldn't exist without them.
 
-SignOs is an **on-device signing store for iOS** — built by **@ihateios** on top of the
-open-source [Feather](https://github.com/claration/Feather) project.
+## Automatic updates
 
-SignOs is owned and developed by @ihateios. Feather's developers do not own or maintain
-SignOs — but **huge thanks to them for their incredible work**; SignOs stands on their shoulders.
+This is the core of SignOs. Once you flip on Update Automatically, the app checks your
+repositories on a schedule you pick (hourly up to daily) and handles everything end to end:
+new version found, downloaded in the background, signed with the app's existing certificate
+so your data survives, old version cleaned up, and the install triggered. On a paired device
+it's completely silent. Otherwise you get a notification with an Install button on it.
 
-## Features
+You get real control over how it behaves:
 
-### Automatic updates — like the App Store
-- Silent background update checks on your schedule (hourly → daily)
-- Updates download, sign and install themselves — no interaction needed
-- Auto-fire install prompts, "Tap to install" notifications with inline **Install** action
-- Fully silent installs with the paired-device (tunnel) method
-- Wi-Fi only and Night-only download windows
-- Per-app **and** per-source auto-update rules, Skip This Version and Hold Updates
-- Live in-place download progress notifications with speed and ETA
-- Update All, Recently Updated, and an App Store-style Updates tab
-- Optional home-screen badge for pending updates
+- Wi-Fi only downloads, or a night-only window if you'd rather it work while you sleep
+- Skip This Version and Hold Updates per app, with automatic resume when something
+  newer than the skipped version ships
+- Auto-update toggles per app and per source
+- Live download progress in Notification Center, with speed and time remaining
+- What's New text from the source right in the update notification
+- Update All, Recently Updated, and a home screen badge for pending updates
 
-### Background signing engine
-- Serial signing queue — every import or download is signed automatically
-- Updates keep the app's existing certificate so **app data always survives**
-- **Keep Apps Signed**: apps are re-signed automatically before certificates expire,
-  using the healthiest certificate available
-- Certificate Health dashboard with expiry rings and one-tap Renew All
-- Reinstall Everything — requeue your whole library in one tap
+## Keep Apps Signed
 
-### A real store experience
-- **Discover** — App Store "Today"-style page with featured apps and source cards
-- **Search** — unified search across every source with recent searches
-- **Library** — card-based app library with search, filters and quick actions
-- **Updates** — available updates, live queue, activity, recently updated
-- Rich app pages: screenshots, What's New, version history, permissions
-- Liquid Glass materials on iOS 26, clean Apple-grade design throughout
+Free certificates expire every 7 days and can get revoked at any time. SignOs watches
+your certificates and re-signs affected apps automatically before expiry — or the moment
+a revocation is detected — using the healthiest certificate you have. Import a new
+certificate and everything migrates to it without you touching anything. The Certificate
+Health page shows each certificate's expiry ring, revocation status, and how many apps
+depend on it, plus a Check Revocation Now button and a one-tap Renew All.
 
-### Power & privacy
-- Activity timeline — see everything SignOs did, and when
-- Storage manager — usage per category, remove superseded copies and duplicates
-- Backup & Restore — export and re-import sources + preferences
-- Face ID Lock
-- Shortcuts app actions: *Check for Updates*, *Install Pending Updates*
-- Tweak injection (`.deb` / `.dylib` via ElleKit), PPQ protection, Liquid Glass patching
-- Full certificate management, AltStore-compatible sources, `signos://` URL scheme
+## OneView install
+
+Tap Get on any app in Discover or Search and a single screen runs the whole journey:
+download progress with speed and ETA, signing status, then Install and Open. No jumping
+between screens, no hunting for what happened to your download.
+
+## App Cloner
+
+Long-press any app in your library and hit Clone App. SignOs signs a second copy under
+a new identity so you can run two accounts of the same app side by side.
+
+## Tweak Vault
+
+Import the .deb and .dylib tweaks you use most and they stay saved in one place. When
+you're signing an app, your vault is right there — one tap adds a tweak to the session,
+one tap removes it. No re-importing the same files every single time.
+
+## Everything else
+
+- Discover tab with featured apps and source cards, Search across all your sources,
+  a Library with filters, and an Updates tab in App Store style
+- Default launch tab setting — open on Library, Updates, wherever you like
+- Import & export folder picker, with security-scoped access
+- Full signing options: PPQ protection, Liquid Glass patching, appearance changes,
+  minimum iOS version, injection paths, ElleKit for tweak injection
+- Storage manager with superseded copy and duplicate cleanup
+- Activity timeline showing everything SignOs did in the background
+- Backup and restore for sources and preferences
+- Face ID lock
+- Shortcuts actions: Check for Updates, Install Pending Updates
+- Certificates manager, AltStore-compatible sources, `signos://` URL scheme
+- Liquid Glass design on iOS 26, clean Apple-style interface everywhere
 
 ## Install
 
-Grab `SignOs.ipa` from [Releases](../../releases) (or the artifact of any build) and sign it
-with SignOs, SideStore, Sideloadly, AltStore or TrollStore. Every push to `main` builds a
-fresh IPA automatically; `v*` tags publish releases.
+Download `SignOs.ipa` from [Releases](../../releases/latest) and sign it with SideStore,
+Sideloadly, AltStore, TrollStore or SignOs itself. Every push to main builds a fresh IPA
+automatically, and tagging a version publishes a release. The app can also update itself
+from its own repository right on your device.
 
 ## Building
 
-```bash
-make iphoneos      # produces packages/SignOs.ipa
+```
+make iphoneos
 ```
 
-Requires Xcode 26+ on macOS. CI builds run automatically via GitHub Actions.
+That produces packages/SignOs.ipa. You need Xcode 26 or newer on macOS.
 
 ## Contact
 
-Questions, feature requests, inquiries: **[Telegram @ihateios](https://t.me/ihateios)**
+Questions, feature ideas, anything else: **[@ihateios on Telegram](https://t.me/ihateios)**
 
-## Credits
+## Thanks
 
-SignOs is owned and developed by **@ihateios**, built over the open-source
-[Feather](https://github.com/claration/Feather) project. Special thanks to:
-
-- [claration](https://github.com/claration) — Feather creator
-- [Nyasami](https://github.com/Nyasami) — Feather developer
-- [llsc12](https://github.com/llsc12) — AltStore repositories support
-
-Thank you for the foundation.
+SignOs is owned and developed by me, @ihateios. It's built over the open source
+[Feather](https://github.com/claration/Feather) project, so special thanks to
+[claration](https://github.com/claration), [Nyasami](https://github.com/Nyasami) and
+[llsc12](https://github.com/llsc12) for the foundation they built.
