@@ -118,6 +118,7 @@ struct LibraryView: View {
 				FileImporterRepresentableView(
 					allowedContentTypes: [.ipa, .tipa],
 					allowsMultipleSelection: true,
+					directoryURL: WSFiles.pickerDirectory,
 					onDocumentsPicked: { urls in
 						guard !urls.isEmpty else { return }
 						for url in urls {

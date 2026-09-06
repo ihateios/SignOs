@@ -29,35 +29,20 @@ struct WSIconTile: View {
 
 // MARK: - View
 struct SettingsView: View {
-	@AppStorage("feather.selectedCert") private var _storedSelectedCert: Int = 0
 	@AppStorage("SignOs.autoDeleteOldVersions") private var _autoDeleteOldVersions: Bool = true
 	@AppStorage("SignOs.biometricLock") private var _biometricLock: Bool = false
+	@AppStorage("SignOs.defaultTab") private var _defaultTabRaw: String = TabEnum.discover.rawValue
+	@State private var _isFolderPickerPresenting = false
 	@AppStorage("SignOs.badgeUpdates") private var _badgeUpdates: Bool = false
 	@StateObject private var autoUpdateManager = AutoUpdateManager.shared
 	@StateObject private var autoSignManager = AutoSignManager.shared
-
-	// MARK: Fetch
-	@FetchRequest(
-		entity: CertificatePair.entity(),
-		sortDescriptors: [NSSortDescriptor(keyPath: \CertificatePair.date, ascending: false)],
-		animation: .snappy
-	) private var _certificates: FetchedResults<CertificatePair>
-
-	private var selectedCertificate: CertificatePair? {
-		guard
-			_storedSelectedCert >= 0,
-			_storedSelectedCert < _certificates.count
-		else {
-			return nil
-		}
-		return _certificates[_storedSelectedCert]
-	}
 
 	// MARK: Body
 	var body: some View {
 		NBNavigationView(.localized("Settings")) {
 			Form {
 				_profile()
+				_general()
 				_automation()
 				_data()
 				_signing()
@@ -99,6 +84,28 @@ extension SettingsView {
 				}
 				.padding(.vertical, 6)
 			}
+		}
+	}
+
+	@ViewBuilder
+	private func _general() -> some View {
+		Section {
+			Picker(selection: $_defaultTabRaw) {
+				Text(.localized("Discover")).tag(TabEnum.discover.rawValue)
+				Text(.localized("Search")).tag(TabEnum.search.rawValue)
+				Text(.localized("Library")).tag(TabEnum.library.rawValue)
+				Text(.localized("Updates")).tag(TabEnum.updates.rawValue)
+				Text(.localized("Settings")).tag(TabEnum.settings.rawValue)
+			} label: {
+				HStack(spacing: 12) {
+					WSIconTile(systemImage: "rectangle.on.rectangle", color: .blue)
+					Text(.localized("Launch Tab"))
+				}
+			}
+		} header: {
+			Text(.localized("General"))
+		} footer: {
+			Text(.localized("The tab SignOs opens every time you launch it."))
 		}
 	}
 
@@ -227,16 +234,6 @@ extension SettingsView {
 	@ViewBuilder
 	private func _data() -> some View {
 		Section {
-			if let cert = selectedCertificate {
-				CertificatesCellView(cert: cert)
-			} else {
-				HStack(spacing: 12) {
-					WSIconTile(systemImage: "checkmark.seal", color: .gray)
-					Text(.localized("No Certificate"))
-						.foregroundStyle(.secondary)
-				}
-			}
-
 			NavigationLink(destination: CertificatesView()) {
 				HStack(spacing: 12) {
 					WSIconTile(systemImage: "checkmark.seal.fill", color: .green)
@@ -248,6 +245,33 @@ extension SettingsView {
 				HStack(spacing: 12) {
 					WSIconTile(systemImage: "internaldrive.fill", color: .blue)
 					Text(.localized("Storage"))
+				}
+			}
+
+			Button {
+				_isFolderPickerPresenting = true
+			} label: {
+				HStack(spacing: 12) {
+					WSIconTile(systemImage: "folder.badge.gearshape", color: .indigo)
+					VStack(alignment: .leading, spacing: 2) {
+						Text(.localized("Import & Export Folder"))
+						Text(verbatim: WSFiles.folderName)
+							.font(.caption)
+							.foregroundStyle(.secondary)
+							.lineLimit(1)
+					}
+				}
+			}
+			.foregroundStyle(.primary)
+
+			if WSFiles.hasCustomFolder {
+				Button(role: .destructive) {
+					WSFiles.clearBookmark()
+				} label: {
+					HStack(spacing: 12) {
+						WSIconTile(systemImage: "arrow.uturn.backward", color: .gray)
+						Text(.localized("Reset Folder to Default"))
+					}
 				}
 			}
 
@@ -297,6 +321,12 @@ extension SettingsView {
 				HStack(spacing: 12) {
 					WSIconTile(systemImage: "arrow.down.circle.fill", color: .blue)
 					Text(.localized("Installation"))
+				}
+			}
+			NavigationLink(destination: TweakVaultView()) {
+				HStack(spacing: 12) {
+					WSIconTile(systemImage: "puzzlepiece.extension.fill", color: .mint)
+					Text(.localized("Tweak Vault"))
 				}
 			}
 		} header: {
@@ -385,6 +415,14 @@ extension SettingsView {
 				.foregroundStyle(.tertiary)
 				.frame(maxWidth: .infinity, alignment: .center)
 				.listRowBackground(Color.clear)
+		}
+		.fileImporter(
+			isPresented: $_isFolderPickerPresenting,
+			allowedContentTypes: [.folder]
+		) { result in
+			if case .success(let url) = result {
+				WSFiles.saveBookmark(for: url)
+			}
 		}
 	}
 }

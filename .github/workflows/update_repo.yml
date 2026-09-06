@@ -25,16 +25,21 @@ jobs:
 
           DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/SignOs.ipa"
 
+          SIZE=$(curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG" | jq -r '.assets[0].size')
+
           jq \
             --arg version "$VERSION" \
             --arg date "$DATE" \
             --arg url "$DOWNLOAD_URL" \
+            --argjson size "$SIZE" \
             '
             .apps[0].version = $version |
             .apps[0].versionDate = $date |
+            .apps[0].size = ($size | tonumber) |
             .apps[0].downloadURL = $url |
             .apps[0].versions[0].version = $version |
             .apps[0].versions[0].date = $date |
+            .apps[0].versions[0].size = ($size | tonumber) |
             .apps[0].versions[0].downloadURL = $url
             ' app-repo.json > tmp.json
 

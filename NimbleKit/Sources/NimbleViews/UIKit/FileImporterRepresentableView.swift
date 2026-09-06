@@ -11,15 +11,18 @@ import UniformTypeIdentifiers
 public struct FileImporterRepresentableView: UIViewControllerRepresentable {
 	public var allowedContentTypes: [UTType]
 	public var allowsMultipleSelection: Bool = false
+	public var directoryURL: URL?
 	public var onDocumentsPicked: ([URL]) -> Void
 	
 	public init(
 		allowedContentTypes: [UTType],
 		allowsMultipleSelection: Bool = false,
+		directoryURL: URL? = nil,
 		onDocumentsPicked: @escaping ([URL]) -> Void
 	) {
 		self.allowedContentTypes = allowedContentTypes
 		self.allowsMultipleSelection = allowsMultipleSelection
+		self.directoryURL = directoryURL
 		self.onDocumentsPicked = onDocumentsPicked
 	}
 	
@@ -31,6 +34,7 @@ public struct FileImporterRepresentableView: UIViewControllerRepresentable {
 		let picker = UIDocumentPickerViewController(forOpeningContentTypes: allowedContentTypes, asCopy: true)
 		picker.delegate = context.coordinator
 		picker.allowsMultipleSelection = allowsMultipleSelection
+		picker.directoryURL = directoryURL
 		return picker
 	}
 	

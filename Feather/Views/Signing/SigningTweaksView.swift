@@ -47,6 +47,39 @@ struct SigningTweaksView: View {
 						.foregroundColor(.disabled())
 				}
 			}
+			
+			NBSection(.localized("Tweak Vault")) {
+				let vault = TweakVaultView.vaultFiles()
+				if vault.isEmpty {
+					Text(verbatim: .localized("Save your favorite tweaks in Settings → Tweak Vault for one-tap access here."))
+						.font(.footnote)
+						.foregroundColor(.disabled())
+				} else {
+					ForEach(vault, id: \.absoluteString) { file in
+						let isIncluded = options.injectionFiles.contains(where: { $0 == file })
+						HStack(spacing: 12) {
+							Image(systemName: isIncluded ? "checkmark.circle.fill" : "plus.circle")
+								.foregroundStyle(isIncluded ? Color.green : Color.accentColor)
+							Text(file.lastPathComponent)
+								.font(.subheadline)
+								.lineLimit(1)
+							Spacer()
+						}
+						.contentShape(Rectangle())
+						.onTapGesture {
+							if isIncluded {
+								if let index = options.injectionFiles.firstIndex(where: { $0 == file }) {
+									options.injectionFiles.remove(at: index)
+								}
+							} else {
+								options.injectionFiles.append(file)
+							}
+						}
+					}
+				}
+			} footer: {
+				Text(.localized("One tap adds or removes a vault tweak from this signing."))
+			}
 		}
 		.toolbar {
 			NBToolbarButton(
@@ -61,6 +94,7 @@ struct SigningTweaksView: View {
 			FileImporterRepresentableView(
 				allowedContentTypes: [.dylib, .deb],
 				allowsMultipleSelection: true,
+				directoryURL: WSFiles.pickerDirectory,
 				onDocumentsPicked: { urls in
 					guard !urls.isEmpty else { return }
 					

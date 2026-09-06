@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct TabbarView: View {
-	@State private var selectedTab: TabEnum = .discover
+	@State private var selectedTab: TabEnum = TabEnum(rawValue: UserDefaults.standard.string(forKey: "SignOs.defaultTab") ?? "") ?? .discover
 
 	var body: some View {
 		TabView(selection: $selectedTab) {

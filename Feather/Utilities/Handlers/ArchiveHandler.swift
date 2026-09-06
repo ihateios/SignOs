@@ -71,16 +71,27 @@ final class ArchiveHandler: NSObject {
 	
 	func moveToArchive(_ package: URL, shouldOpen: Bool = false) async throws -> URL? {
 		let appendingString = "\(_app.name!)_\(_app.version!)_\(Int(Date().timeIntervalSince1970)).ipa"
-		let dest = _fileManager.archives.appendingPathComponent(appendingString)
-		
-		try? _fileManager.moveItem(
-			at: package,
-			to: dest
-		)
+		var dest = _fileManager.archives.appendingPathComponent(appendingString)
+		var usedCustomFolder = false
+
+		// Prefer the user's chosen import/export folder when set.
+		if let custom = WSFiles.withCustomFolder({ folder -> URL in
+			let target = folder.appendingPathComponent(appendingString)
+			try? _fileManager.removeItem(at: target)
+			try _fileManager.moveItem(at: package, to: target)
+			return target
+		}) {
+			dest = custom
+			usedCustomFolder = true
+		} else {
+			try? _fileManager.removeItem(at: dest)
+			try _fileManager.moveItem(at: package, to: dest)
+		}
 		
 		if shouldOpen {
+			let openURL = usedCustomFolder ? dest : FileManager.default.archives.toSharedDocumentsURL()!
 			await MainActor.run {
-				UIApplication.open(FileManager.default.archives.toSharedDocumentsURL()!)
+				UIApplication.open(openURL)
 			}
 		}
 		

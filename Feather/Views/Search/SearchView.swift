@@ -23,7 +23,6 @@ struct SearchView: View {
 
 	@State private var _query = ""
 	@State private var _recentSearches: [String] = UserDefaults.standard.stringArray(forKey: "SignOs.recentSearches") ?? []
-	@FocusState private var _searchFocused: Bool
 
 	private var _allApps: [(source: AltSource, repository: ASRepository, app: ASRepository.App)] {
 		var result: [(AltSource, ASRepository, ASRepository.App)] = []
