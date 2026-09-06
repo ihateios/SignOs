@@ -213,9 +213,7 @@ extension DiscoverView {
 					.font(.body.weight(.semibold))
 					.foregroundStyle(.primary)
 					.lineLimit(1)
-				Text(verbatim: autoEnabled
-					? _appCount(source)
-					: "\(_appCount(source)) • Auto-Updates Off")
+				Text(verbatim: _sourceCaption(source, autoEnabled: autoEnabled))
 					.font(.caption)
 					.foregroundStyle(.secondary)
 					.lineLimit(1)
@@ -326,3 +324,22 @@ extension DiscoverView {
 
 }
 
+extension DiscoverView {
+	private func _sourceCaption(_ source: AltSource, autoEnabled: Bool) -> String {
+		let count = viewModel.sources[source]?.apps.count
+		let base: String
+		if let count {
+			base = count == 1 ? "1 app" : "\(count) apps"
+		} else if !viewModel.isFinished {
+			return "Refreshing…"
+		} else {
+			return "Couldn't refresh"
+		}
+
+		let suffix = autoEnabled ? "" : " • Auto-Updates Off"
+		if let last = _refreshDates[source.identifier ?? ""] {
+			return "\(base) • \(last.formatted(.relative(presentation: .named)))\(suffix)"
+		}
+		return base + suffix
+	}
+}

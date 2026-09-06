@@ -24,6 +24,7 @@ class Download: Identifiable, @unchecked Sendable {
 	
 	var task: URLSessionDownloadTask?
 	var resumeData: Data?
+	var lastNotificationProgress: Double = 0.0
 	
 	let id: String
 	let url: URL
@@ -142,6 +143,7 @@ class DownloadManager: NSObject, ObservableObject {
 	
 	func cancelDownload(_ download: Download) {
 		download.task?.cancel()
+		_removeProgressNotification(for: download)
 		
 		if let index = downloads.firstIndex(where: { $0.id == download.id }) {
 			downloads.remove(at: index)
@@ -173,6 +175,31 @@ class DownloadManager: NSObject, ObservableObject {
 	}
 }
 
+	/// Updates a single notification in place, App Store style.
+	private func _postProgressIfDue(_ download: Download) {
+		guard UserDefaults.standard.object(forKey: "SignOs.notificationsEnabled") as? Bool ?? true else { return }
+		guard download.progress - download.lastNotificationProgress >= 0.1 else { return }
+		download.lastNotificationProgress = download.progress
+
+		let content = UNMutableNotificationContent()
+		content.title = download.fileName
+		content.body = "Downloading… \(Int(download.overallProgress * 100))%"
+
+		let request = UNNotificationRequest(
+			identifier: "signos.download.\(download.id)",
+			content: content,
+			trigger: nil
+		)
+		UNUserNotificationCenter.current().add(request)
+	}
+
+	func _removeProgressNotification(for download: Download) {
+		UNUserNotificationCenter.current().removeDeliveredNotifications(
+			withIdentifiers: ["signos.download.\(download.id)"]
+		)
+	}
+
+
 extension DownloadManager: URLSessionDownloadDelegate {
 	
 	func handlePachageFile(url: URL, dl: Download) throws {
@@ -183,7 +210,8 @@ extension DownloadManager: URLSessionDownloadDelegate {
 			}
 			
 			DispatchQueue.main.async {
-				if let index = DownloadManager.shared.getDownloadIndex(by: dl.id) {
+							DownloadManager.shared._removeProgressNotification(for: dl)
+if let index = DownloadManager.shared.getDownloadIndex(by: dl.id) {
 					DownloadManager.shared.downloads.remove(at: index)
 					
 					#if !targetEnvironment(macCatalyst)
@@ -235,6 +263,7 @@ extension DownloadManager: URLSessionDownloadDelegate {
 				BackgroundTaskManager.shared.updateProgress(for: download.id, progress: download.overallProgress)
 			}
 			#endif
+			_postProgressIfDue(download)
 		}
 	}
 	
@@ -248,7 +277,8 @@ extension DownloadManager: URLSessionDownloadDelegate {
 		}
 		
 		DispatchQueue.main.async {
-			if let index = self.getDownloadIndex(by: download.id) {
+						self._removeProgressNotification(for: download)
+if let index = self.getDownloadIndex(by: download.id) {
 				self.downloads.remove(at: index)
 			}
 		}

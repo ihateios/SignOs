@@ -20,6 +20,7 @@ struct AppUpdate: Identifiable, Equatable {
 	let downloadURL: URL
 	let sourceURL: URL
 	let sourceProvenance: SourceAppProvenance
+	let whatsNew: String?
 }
 
 @MainActor
@@ -54,7 +55,55 @@ final class UpdateManager: ObservableObject {
 		}
 		
 		let repositories = await _fetchRepositories(from: sources)
-		updates = _findUpdates(repositories: repositories, localApps: localApps)
+		updates = _applySkips(_findUpdates(repositories: repositories, localApps: localApps))
+	}
+
+	// MARK: - Skips & Holds
+
+	func dismissUpdate(withLocalUUID id: String) {
+		updates.removeValue(forKey: id)
+	}
+
+	func isHeld(for identifier: String) -> Bool {
+		let held = UserDefaults.standard.dictionary(forKey: "SignOs.heldApps") as? [String: Bool] ?? [:]
+		return held[identifier] ?? false
+	}
+
+	func setHeld(_ held: Bool, for identifier: String) {
+		var dict = UserDefaults.standard.dictionary(forKey: "SignOs.heldApps") as? [String: Bool] ?? [:]
+		dict[identifier] = held
+		UserDefaults.standard.set(dict, forKey: "SignOs.heldApps")
+	}
+
+	func skip(version: String, for identifier: String) {
+		var dict = UserDefaults.standard.dictionary(forKey: "SignOs.skippedVersions") as? [String: String] ?? [:]
+		dict[identifier] = version
+		UserDefaults.standard.set(dict, forKey: "SignOs.skippedVersions")
+	}
+
+	func clearSkip(for identifier: String) {
+		var dict = UserDefaults.standard.dictionary(forKey: "SignOs.skippedVersions") as? [String: String] ?? [:]
+		dict.removeValue(forKey: identifier)
+		UserDefaults.standard.set(dict, forKey: "SignOs.skippedVersions")
+	}
+
+	func skippedVersion(for identifier: String) -> String? {
+		let skipped = UserDefaults.standard.dictionary(forKey: "SignOs.skippedVersions") as? [String: String] ?? [:]
+		return skipped[identifier]
+	}
+
+	/// Removes held apps and skipped versions; a skipped version
+	/// resurfaces automatically once something newer is published.
+	private func _applySkips(_ found: [String: AppUpdate]) -> [String: AppUpdate] {
+		let skipped = UserDefaults.standard.dictionary(forKey: "SignOs.skippedVersions") as? [String: String] ?? [:]
+		let held = UserDefaults.standard.dictionary(forKey: "SignOs.heldApps") as? [String: Bool] ?? [:]
+
+		return found.filter { entry in
+			let update = entry.value
+			if held[update.bundleIdentifier] == true { return false }
+			if skipped[update.bundleIdentifier] == update.remoteVersion { return false }
+			return true
+		}
 	}
 	
 	private func _fetchRepositories(from sources: [AltSource]) async -> [(AltSource, ASRepository)] {
@@ -198,7 +247,8 @@ final class UpdateManager: ObservableObject {
 					bundleIdentifier: sourceAppIdentifier,
 					downloadURL: downloadURL,
 					sourceURL: sourceURL,
-					sourceProvenance: provenance
+					sourceProvenance: provenance,
+					whatsNew: remoteApp.currentAppVersion?.localizedDescription
 				)
 				break
 			}

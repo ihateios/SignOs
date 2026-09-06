@@ -17,6 +17,7 @@ struct UpdatesView: View {
 	@ObservedObject private var updateManager = UpdateManager.shared
 	@ObservedObject private var downloadManager = DownloadManager.shared
 	@ObservedObject private var autoSignManager = AutoSignManager.shared
+	@State private var _heldTick = 0
 
 	@FetchRequest(
 		entity: Signed.entity(),
@@ -50,7 +51,9 @@ struct UpdatesView: View {
 
 					if !_sortedUpdates.isEmpty {
 						_availableUpdatesSection()
-					}
+
+
+					_heldSection()					}
 
 					if autoSignManager.currentJob != nil || !autoSignManager.queue.isEmpty || !downloadManager.downloads.isEmpty {
 						_activitySection()
@@ -222,6 +225,21 @@ extension UpdatesView {
 				}
 			} label: {
 				Label(.localized("Auto-Update"), systemImage: "automatic")
+			}
+			Divider()
+
+			Button {
+				updateManager.skip(version: update.remoteVersion, for: update.bundleIdentifier)
+				updateManager.dismissUpdate(withLocalUUID: update.id)
+			} label: {
+				Label(.localized("Skip This Version"), systemImage: "eye.slash")
+			}
+
+			Button {
+				updateManager.setHeld(true, for: update.bundleIdentifier)
+				updateManager.dismissUpdate(withLocalUUID: update.id)
+			} label: {
+				Label(.localized("Hold Updates for This App"), systemImage: "pause.circle")
 			}
 		}
 	}
@@ -414,6 +432,15 @@ struct WSDownloadCard: View {
 					.font(.caption.weight(.semibold).monospacedDigit())
 					.foregroundStyle(.secondary)
 					.contentTransition(.numericText())
+				Button {
+					if let dl = DownloadManager.shared.getDownload(by: download.id) {
+						DownloadManager.shared.cancelDownload(dl)
+					}
+				} label: {
+					Image(systemName: "xmark.circle.fill")
+						.foregroundStyle(.tertiary)
+				}
+				.buttonStyle(.plain)
 			}
 
 			ProgressView(value: download.overallProgress)
@@ -447,5 +474,72 @@ struct WSDownloadCard: View {
 				_etaText = ""
 			}
 		}
+	}
+}
+
+// MARK: - Held & Skipped
+extension UpdatesView {
+	@ViewBuilder
+	private func _heldSection() -> some View {
+		let rows = _heldApps()
+		if !rows.isEmpty {
+			VStack(alignment: .leading, spacing: 12) {
+				WSSectionTitle(title: "Held & Skipped")
+
+				VStack(spacing: 10) {
+					ForEach(rows, id: \.identifier) { row in
+						HStack(spacing: 14) {
+							Image(systemName: row.held ? "pause.circle.fill" : "eye.slash.fill")
+								.font(.title3)
+								.foregroundStyle(.secondary)
+								.frame(width: 30)
+
+							VStack(alignment: .leading, spacing: 3) {
+								Text(row.name)
+									.font(.body.weight(.semibold))
+									.foregroundStyle(.primary)
+									.lineLimit(1)
+								Text(verbatim: row.held
+									? "Updates held"
+									: "Skipped version \(row.skipped ?? "")")
+									.font(.caption)
+									.foregroundStyle(.secondary)
+							}
+
+							Spacer()
+
+							WSActionButton(title: row.held ? "Resume" : "Unskip", style: .quiet) {
+								if row.held {
+									updateManager.setHeld(false, for: row.identifier)
+								} else {
+									updateManager.clearSkip(for: row.identifier)
+								}
+								_heldTick += 1
+							}
+						}
+						.padding(14)
+						.background(
+							RoundedRectangle(cornerRadius: 20, style: .continuous)
+								.fill(Color(uiColor: .secondarySystemGroupedBackground))
+						)
+					}
+				}
+			}
+		}
+	}
+
+	private func _heldApps() -> [(identifier: String, name: String, held: Bool, skipped: String?)] {
+		var seen = Set<String>()
+		var rows: [(identifier: String, name: String, held: Bool, skipped: String?)] = []
+		for app in _signedApps.map({ $0 as (any AppInfoPresentable) }) + _importedApps.map({ $0 as (any AppInfoPresentable) }) {
+			guard let identifier = app.identifier, !seen.contains(identifier) else { continue }
+			let held = updateManager.isHeld(for: identifier)
+			let skipped = updateManager.skippedVersion(for: identifier)
+			if held || skipped != nil {
+				seen.insert(identifier)
+				rows.append((identifier, app.name ?? identifier, held, skipped))
+			}
+		}
+		return rows
 	}
 }

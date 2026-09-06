@@ -180,13 +180,20 @@ final class AutoUpdateManager: ObservableObject {
 		_updateBadge(updates.count)
 
 		if !isAutoUpdateEnabled {
-			notify(
-				title: "Updates Available",
-				body: updates.count == 1
-					? "\(updates[0].appName) has a new version available."
-					: "\(updates.count) apps have new versions available.",
-				identifier: "signos.updates.available"
-			)
+			let body: String
+			if
+				updates.count == 1,
+				let whatsNew = updates[0].whatsNew,
+				!whatsNew.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+			{
+				let trimmed = whatsNew.count > 120 ? String(whatsNew.prefix(120)) + "…" : whatsNew
+				body = "\(updates[0].appName) \(updates[0].remoteVersion): \(trimmed)"
+			} else if updates.count == 1 {
+				body = "\(updates[0].appName) has a new version available."
+			} else {
+				body = "\(updates.count) apps have new versions available."
+			}
+			notify(title: "Updates Available", body: body, identifier: "signos.updates.available")
 			return updates.count
 		}
 

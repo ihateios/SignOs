@@ -98,32 +98,102 @@ struct StorageView: View {
 		.onAppear { _refreshSizes() }
 	}
 
+	private func _matchKey(_ name: String?, _ identifier: String?) -> String? {
+		// PPQ protection can change identifiers between signs, so group
+		// by display name first and fall back to the identifier.
+		if let name, !name.isEmpty { return "name:" + name.lowercased() }
+		if let identifier, !identifier.isEmpty { return "id:" + identifier }
+		return nil
+	}
+
 	private var _supersededCount: Int {
-		var newestByIdentifier: [String: Date] = [:]
+		var newestByKey: [String: Date] = [:]
 		for app in _signedApps {
-			guard let identifier = app.identifier else { continue }
+			guard let key = _matchKey(app.name, app.identifier) else { continue }
 			let date = app.date ?? .distantPast
-			if date > (newestByIdentifier[identifier] ?? .distantPast) {
-				newestByIdentifier[identifier] = date
+			if date > (newestByKey[key] ?? .distantPast) {
+				newestByKey[key] = date
 			}
 		}
 		return _signedApps.filter { app in
-			guard let identifier = app.identifier else { return false }
-			guard let newest = newestByIdentifier[identifier] else { return false }
+			guard let key = _matchKey(app.name, app.identifier) else { return false }
+			guard let newest = newestByKey[key] else { return false }
 			return (app.date ?? .distantPast) < newest
 		}.count
 	}
-}
 
-// MARK: - Actions
-extension StorageView {
-	private func _icon(for category: Category) -> String {
-		switch category {
-		case .archives: return "archivebox"
-		case .certificates: return "checkmark.seal"
-		case .installed: return "square.stack.3d.up.fill"
-		case .imports: return "tray.and.arrow.down.fill"
+	private func _cleanSuperseded() {
+		UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+		_isCleaning = true
+
+		var newestByKey: [String: Date] = [:]
+		for app in _signedApps {
+			guard let key = _matchKey(app.name, app.identifier) else { continue }
+			let date = app.date ?? .distantPast
+			if date > (newestByKey[key] ?? .distantPast) {
+				newestByKey[key] = date
+			}
 		}
+
+		var victims: [Signed] = []
+		for app in _signedApps {
+			guard let key = _matchKey(app.name, app.identifier) else { continue }
+			guard let newest = newestByKey[key] else { continue }
+			if (app.date ?? .distantPast) < newest {
+				victims.append(app)
+			}
+		}
+
+		var removed = 0
+		for victim in victims {
+			Storage.shared.deleteApp(for: victim)
+			removed += 1
+		}
+
+		_isCleaning = false
+		_cleanedMessage = removed == 0
+			? .localized("Nothing to clean up.")
+			: .localized("Removed %lld old copies.", arguments: removed)
+		_refreshSizes()
+	}
+
+	private var _duplicateCount: Int {
+		let installedNames = Set(_signedApps.compactMap { $0.name?.lowercased() })
+		let installedIds = Set(_signedApps.compactMap { $0.identifier })
+		return _importedApps.filter { imported in
+			if let identifier = imported.identifier, installedIds.contains(identifier) { return true }
+			if let name = imported.name?.lowercased(), installedNames.contains(name) { return true }
+			return false
+		}.count
+	}
+
+	private func _cleanDuplicates() {
+		UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+		_isCleaning = true
+
+		let installedNames = Set(_signedApps.compactMap { $0.name?.lowercased() })
+		let installedIds = Set(_signedApps.compactMap { $0.identifier })
+
+		var victims: [Imported] = []
+		for imported in _importedApps {
+			if let identifier = imported.identifier, installedIds.contains(identifier) {
+				victims.append(imported)
+			} else if let name = imported.name?.lowercased(), installedNames.contains(name) {
+				victims.append(imported)
+			}
+		}
+
+		var removed = 0
+		for victim in victims {
+			Storage.shared.deleteApp(for: victim)
+			removed += 1
+		}
+
+		_isCleaning = false
+		_cleanedMessage = removed == 0
+			? .localized("Nothing to clean up.")
+			: .localized("Removed %lld imported duplicates.", arguments: removed)
+		_refreshSizes()
 	}
 
 	private func _refreshSizes() {

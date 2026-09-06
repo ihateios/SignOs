@@ -77,6 +77,15 @@ struct DownloadItemView: View {
 					.font(.caption.weight(.semibold).monospacedDigit())
 					.foregroundStyle(.secondary)
 					.contentTransition(.numericText())
+				Button {
+					if let dl = DownloadManager.shared.getDownload(by: download.id) {
+						DownloadManager.shared.cancelDownload(dl)
+					}
+				} label: {
+					Image(systemName: "xmark.circle.fill")
+						.foregroundStyle(.tertiary)
+				}
+				.buttonStyle(.plain)
 			}
 
 			ProgressView(value: overallProgress)

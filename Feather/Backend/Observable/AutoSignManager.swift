@@ -145,7 +145,17 @@ final class AutoSignManager: ObservableObject {
 
 		guard let identifier = job.appIdentifier ?? app.identifier else { return }
 
-		let signedApps = _signedApps().filter { $0.identifier == identifier }
+		var signedApps = _signedApps().filter { $0.identifier == identifier }
+		if let newestEntry = signedApps.max(by: { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }) {
+			// PPQ-protected apps change identifiers on every sign; catch
+			// those old versions by display name so they never pile up.
+			let sameName = _signedApps().filter {
+				$0.uuid != newestEntry.uuid && $0.name != nil && $0.name == newestEntry.name
+			}
+			for extra in sameName where !signedApps.contains(where: { $0.uuid == extra.uuid }) {
+				signedApps.append(extra)
+			}
+		}
 		guard let newest = signedApps.max(by: { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }) else {
 			lastErrorMessage = "Signing did not produce a new app entry."
 			return

@@ -24,6 +24,7 @@ struct CertHealthView: View {
 	) private var _signedApps: FetchedResults<Signed>
 
 	@State private var _renewMessage: String?
+	@State private var _reinstallEverything = false
 
 	var body: some View {
 		NBNavigationView(.localized("Certificate Health")) {
@@ -49,6 +50,28 @@ struct CertHealthView: View {
 							Label(.localized("Renew All Apps with Best Certificate"), systemImage: "checkmark.seal.fill")
 						}
 						.disabled(_bestCertificate == nil || _signedApps.isEmpty)
+
+						Button {
+							_reinstallEverything = true
+						} label: {
+							Label(.localized("Reinstall Everything"), systemImage: "arrow.clockwise.circle.fill")
+						}
+						.disabled(_signedApps.isEmpty)
+						.confirmationDialog(
+							.localized("Reinstall all apps?"),
+							isPresented: $_reinstallEverything,
+							titleVisibility: .visible
+						) {
+							Button(.localized("Reinstall \(_signedApps.count) apps")) {
+								for app in _signedApps {
+									AutoSignManager.shared.enqueue(app: app, reason: .renewal)
+								}
+								_renewMessage = .localized("All apps queued for reinstall.")
+							}
+							Button(.localized("Cancel"), role: .cancel) {}
+						} message: {
+							Text(.localized("Every installed app will be prepared for install again using its current certificate."))
+						}
 					}
 
 					if let message = _renewMessage {
