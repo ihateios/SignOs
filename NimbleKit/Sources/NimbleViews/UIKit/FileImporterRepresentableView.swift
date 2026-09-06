@@ -12,17 +12,20 @@ public struct FileImporterRepresentableView: UIViewControllerRepresentable {
 	public var allowedContentTypes: [UTType]
 	public var allowsMultipleSelection: Bool = false
 	public var directoryURL: URL?
+	public var asCopy: Bool = true
 	public var onDocumentsPicked: ([URL]) -> Void
 	
 	public init(
 		allowedContentTypes: [UTType],
 		allowsMultipleSelection: Bool = false,
 		directoryURL: URL? = nil,
+		asCopy: Bool = true,
 		onDocumentsPicked: @escaping ([URL]) -> Void
 	) {
 		self.allowedContentTypes = allowedContentTypes
 		self.allowsMultipleSelection = allowsMultipleSelection
 		self.directoryURL = directoryURL
+		self.asCopy = asCopy
 		self.onDocumentsPicked = onDocumentsPicked
 	}
 	
@@ -31,7 +34,7 @@ public struct FileImporterRepresentableView: UIViewControllerRepresentable {
 	}
 	
 	public func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
-		let picker = UIDocumentPickerViewController(forOpeningContentTypes: allowedContentTypes, asCopy: true)
+		let picker = UIDocumentPickerViewController(forOpeningContentTypes: allowedContentTypes, asCopy: asCopy)
 		picker.delegate = context.coordinator
 		picker.allowsMultipleSelection = allowsMultipleSelection
 		picker.directoryURL = directoryURL

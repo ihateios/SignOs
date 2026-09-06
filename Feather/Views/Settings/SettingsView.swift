@@ -53,6 +53,18 @@ struct SettingsView: View {
 				_footer()
 			}
 		}
+		.sheet(isPresented: $_isFolderPickerPresenting) {
+			FileImporterRepresentableView(
+				allowedContentTypes: [.folder],
+				directoryURL: WSFiles.pickerDirectory,
+				asCopy: false,
+				onDocumentsPicked: { urls in
+					guard let url = urls.first else { return }
+					WSFiles.saveBookmark(for: url)
+				}
+			)
+			.ignoresSafeArea()
+		}
 	}
 }
 
@@ -415,14 +427,6 @@ extension SettingsView {
 				.foregroundStyle(.tertiary)
 				.frame(maxWidth: .infinity, alignment: .center)
 				.listRowBackground(Color.clear)
-		}
-		.fileImporter(
-			isPresented: $_isFolderPickerPresenting,
-			allowedContentTypes: [.folder]
-		) { result in
-			if case .success(let url) = result {
-				WSFiles.saveBookmark(for: url)
-			}
 		}
 	}
 }

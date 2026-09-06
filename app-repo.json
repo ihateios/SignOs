@@ -14,18 +14,18 @@
       "tintColor": "0a84ff",
       "versions": [
         {
-          "version": "1.4.1",
-          "date": "2026-09-06T01:50:28Z",
+          "version": "1.0.0",
+          "date": "2026-09-06T00:00:00Z",
           "size": 14650289,
-          "downloadURL": "https://github.com/ihateios/SignOs/releases/download/v1.4.1/SignOs.ipa"
+          "downloadURL": "https://github.com/ihateios/SignOs/releases/download/v1.0.0/SignOs.ipa"
         }
       ],
       "appPermissions": {},
       "screenshotURLs": [],
-      "version": "1.4.1",
-      "versionDate": "2026-09-06T01:50:28Z",
+      "version": "1.0.0",
+      "versionDate": "2026-09-06T00:00:00Z",
       "size": 14650289,
-      "downloadURL": "https://github.com/ihateios/SignOs/releases/download/v1.4.1/SignOs.ipa"
+      "downloadURL": "https://github.com/ihateios/SignOs/releases/download/v1.0.0/SignOs.ipa"
     }
   ],
   "news": [
