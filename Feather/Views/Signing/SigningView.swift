@@ -244,7 +244,7 @@ extension SigningView {
 					HStack(spacing: 12) {
 						Image(systemName: cert.revoked ? "exclamationmark.shield.fill" : "checkmark.seal.fill")
 							.font(.title3)
-							.foregroundStyle(cert.revoked ? Color.red : Color.tint)
+							.foregroundStyle(cert.revoked ? Color.red : Color.accentColor)
 						VStack(alignment: .leading, spacing: 3) {
 							Text(cert.nickname ?? .localized("Certificate"))
 								.font(.body.weight(.semibold))

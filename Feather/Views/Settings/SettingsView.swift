@@ -32,8 +32,6 @@ struct SettingsView: View {
 	@AppStorage("SignOs.autoDeleteOldVersions") private var _autoDeleteOldVersions: Bool = true
 	@AppStorage("SignOs.biometricLock") private var _biometricLock: Bool = false
 	@AppStorage("SignOs.defaultTab") private var _defaultTabRaw: String = TabEnum.discover.rawValue
-	@State private var _isImportPickerPresenting = false
-	@State private var _isExportPickerPresenting = false
 	@AppStorage("SignOs.badgeUpdates") private var _badgeUpdates: Bool = false
 	@StateObject private var autoUpdateManager = AutoUpdateManager.shared
 	@StateObject private var autoSignManager = AutoSignManager.shared
@@ -53,18 +51,6 @@ struct SettingsView: View {
 				_danger()
 				_footer()
 			}
-		}
-		.sheet(isPresented: $_isFolderPickerPresenting) {
-			FileImporterRepresentableView(
-				allowedContentTypes: [.folder],
-				directoryURL: WSFiles.pickerDirectory,
-				asCopy: false,
-				onDocumentsPicked: { urls in
-					guard let url = urls.first else { return }
-					WSFiles.saveBookmark(for: url)
-				}
-			)
-			.ignoresSafeArea()
 		}
 	}
 }
@@ -261,60 +247,6 @@ extension SettingsView {
 				}
 			}
 
-			Button {
-				_isImportPickerPresenting = true
-			} label: {
-				HStack(spacing: 12) {
-					WSIconTile(systemImage: "square.and.arrow.down.on.square", color: .indigo)
-					VStack(alignment: .leading, spacing: 2) {
-						Text(.localized("Import Folder"))
-						Text(verbatim: WSFiles.hasImportFolder ? WSFiles.importFolderName : .localized("Last visited"))
-							.font(.caption)
-							.foregroundStyle(.secondary)
-							.lineLimit(1)
-					}
-				}
-			}
-			.foregroundStyle(.primary)
-
-			if WSFiles.hasImportFolder {
-				Button(role: .destructive) {
-					WSFiles.clearImportFolder()
-				} label: {
-					HStack(spacing: 12) {
-						WSIconTile(systemImage: "arrow.uturn.backward", color: .gray)
-						Text(.localized("Reset Import Folder"))
-					}
-				}
-			}
-
-			Button {
-				_isExportPickerPresenting = true
-			} label: {
-				HStack(spacing: 12) {
-					WSIconTile(systemImage: "square.and.arrow.up.on.square", color: .teal)
-					VStack(alignment: .leading, spacing: 2) {
-						Text(.localized("Export Folder"))
-						Text(verbatim: WSFiles.hasExportFolder ? WSFiles.exportFolderName : "Documents/Archives")
-							.font(.caption)
-							.foregroundStyle(.secondary)
-							.lineLimit(1)
-					}
-				}
-			}
-			.foregroundStyle(.primary)
-
-			if WSFiles.hasExportFolder {
-				Button(role: .destructive) {
-					WSFiles.clearExportFolder()
-				} label: {
-					HStack(spacing: 12) {
-						WSIconTile(systemImage: "arrow.uturn.backward", color: .gray)
-						Text(.localized("Reset Export Folder"))
-					}
-				}
-			}
-
 			NavigationLink(destination: ActivityView()) {
 				HStack(spacing: 12) {
 					WSIconTile(systemImage: "clock.arrow.circlepath", color: .indigo)
@@ -455,22 +387,6 @@ extension SettingsView {
 				.foregroundStyle(.tertiary)
 				.frame(maxWidth: .infinity, alignment: .center)
 				.listRowBackground(Color.clear)
-		}
-		.fileImporter(
-			isPresented: $_isImportPickerPresenting,
-			allowedContentTypes: [.folder]
-		) { result in
-			if case .success(let url) = result {
-				WSFiles.saveImportBookmark(for: url)
-			}
-		}
-		.fileImporter(
-			isPresented: $_isExportPickerPresenting,
-			allowedContentTypes: [.folder]
-		) { result in
-			if case .success(let url) = result {
-				WSFiles.saveExportBookmark(for: url)
-			}
 		}
 	}
 }

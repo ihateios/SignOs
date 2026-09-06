@@ -31,6 +31,7 @@ final class AutoSignManager: ObservableObject {
 		let appName: String?
 		var certificate: CertificatePair? = nil
 		var options: Options? = nil
+		var retryCount: Int = 0
 	}
 
 	@Published private(set) var queue: [Job] = []
@@ -44,6 +45,7 @@ final class AutoSignManager: ObservableObject {
 	private static var _liveInstallers: [ServerInstaller] = []
 
 	private init() {
+		UIDevice.current.isBatteryMonitoringEnabled = true
 		NotificationCenter.default.addObserver(
 			forName: Notification.Name("SignOs.autoInstallRequested"),
 			object: nil,
@@ -61,6 +63,23 @@ final class AutoSignManager: ObservableObject {
 	var isAutoSignEnabled: Bool {
 		get { UserDefaults.standard.object(forKey: "SignOs.autoSignEnabled") as? Bool ?? true }
 		set { UserDefaults.standard.set(newValue, forKey: "SignOs.autoSignEnabled") }
+	}
+
+	// MARK: - Per-app certificate pins
+
+	static func pinnedCertificateUUID(for identifier: String) -> String? {
+		let pins = UserDefaults.standard.dictionary(forKey: "SignOs.appCertificatePins") as? [String: String] ?? [:]
+		return pins[identifier]
+	}
+
+	static func setPinnedCertificate(_ uuid: String?, for identifier: String) {
+		var pins = UserDefaults.standard.dictionary(forKey: "SignOs.appCertificatePins") as? [String: String] ?? [:]
+		if let uuid {
+			pins[identifier] = uuid
+		} else {
+			pins.removeValue(forKey: identifier)
+		}
+		UserDefaults.standard.set(pins, forKey: "SignOs.appCertificatePins")
 	}
 
 	private var _autoDeleteOldVersions: Bool {
@@ -170,6 +189,22 @@ final class AutoSignManager: ObservableObject {
 		if let signingError {
 			lastErrorMessage = signingError.localizedDescription
 			ActivityLog.shared.log(.failed, app: job.appName ?? "App", detail: signingError.localizedDescription)
+
+			// one automatic retry — transient failures (locks, disk spikes) recover
+			if job.retryCount < 1 {
+				var retry = Job(
+					appUUID: job.appUUID,
+					reason: job.reason,
+					appIdentifier: job.appIdentifier,
+					appName: job.appName,
+					certificate: job.certificate,
+					options: job.options
+				)
+				retry.retryCount = job.retryCount + 1
+				enqueue(job: retry)
+				return
+			}
+
 			AutoUpdateManager.shared.notify(
 				title: "Couldn't Install \(job.appName ?? "App")",
 				body: "Open SignOs and try again.",
@@ -227,6 +262,19 @@ final class AutoSignManager: ObservableObject {
 	private func _attemptSilentInstall(_ app: Signed) async {
 		let method = UserDefaults.standard.integer(forKey: "Feather.installationMethod")
 		guard method == 0 || method == 1 else { return }
+
+		// charging-only preference: hold the install until power is connected
+		if UserDefaults.standard.object(forKey: "SignOs.installChargingOnly") as? Bool ?? false {
+			let state = UIDevice.current.batteryState
+			guard state == .charging || state == .full else {
+				AutoUpdateManager.shared.notify(
+					title: "\(app.name ?? "App") is waiting for power",
+					body: "Connect your device to a charger to finish installing.",
+					identifier: "signos.charging.\(app.uuid ?? UUID().uuidString)"
+				)
+				return
+			}
+		}
 
 		ArchiveHandler.fastestCompressionOverride = true
 		defer { ArchiveHandler.fastestCompressionOverride = false }

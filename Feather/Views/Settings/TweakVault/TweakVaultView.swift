@@ -51,7 +51,6 @@ struct TweakVaultView: View {
 				FileImporterRepresentableView(
 					allowedContentTypes: [.dylib, .deb],
 					allowsMultipleSelection: true,
-					directoryURL: WSFiles.importPickerDirectory,
 					onDocumentsPicked: { urls in
 						guard !urls.isEmpty else { return }
 						for url in urls {

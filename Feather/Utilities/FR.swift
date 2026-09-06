@@ -19,7 +19,7 @@ enum FR {
 		sourceProvenance: SourceAppProvenance? = nil,
 		completion: @escaping (Error?) -> Void
 	) {
-		Task.detached {
+		Task.detached(priority: .userInitiated) {
 			let handler = AppFileHandler(
 				file: ipa,
 				download: download,
@@ -51,7 +51,7 @@ enum FR {
 		certificate: CertificatePair?,
 		completion: @escaping (Error?) -> Void
 	) {
-		Task.detached {
+		Task.detached(priority: .userInitiated) {
 			let handler = SigningHandler(app: app, options: options)
 			handler.appCertificate = certificate
 			handler.appIcon = icon
@@ -80,7 +80,7 @@ enum FR {
 		isDefault: Bool = false,
 		completion: @escaping (Error?) -> Void
 	) {
-		Task.detached {
+		Task.detached(priority: .userInitiated) {
 			let handler = CertificateFileHandler(
 				key: p12URL,
 				provision: provisionURL,

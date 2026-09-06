@@ -58,7 +58,7 @@ final class AppFileHandler: NSObject, @unchecked Sendable {
 		let download = self._download
 		
 		try await withCheckedThrowingContinuation { continuation in
-			DispatchQueue.global(qos: .utility).async {
+			DispatchQueue.global(qos: .userInitiated).async {
 				do {
 					try Zip.unzipFile(
 						self._ipa,

@@ -76,8 +76,15 @@ struct WSOneViewGetButton: View {
 	let source: ASRepository?
 	let app: ASRepository.App
 
+	init(sourceURL: URL?, source: ASRepository?, app: ASRepository.App) {
+		self.sourceURL = sourceURL
+		self.source = source
+		self.app = app
+	}
+
 	@ObservedObject private var downloadManager = DownloadManager.shared
 	@ObservedObject private var autoSignManager = AutoSignManager.shared
+	@State private var _tappedGet = false
 	@FetchRequest(
 		entity: Signed.entity(),
 		sortDescriptors: [NSSortDescriptor(keyPath: \Signed.date, ascending: false)],
@@ -107,10 +114,12 @@ struct WSOneViewGetButton: View {
 		)
 
 		Group {
+			let phase: OneViewPhase = (phase == .idle && _tappedGet) ? .preparing : phase
 			switch phase {
 			case .idle:
 				Button {
 					UIImpactFeedbackGenerator(style: .light).impactOccurred()
+					_tappedGet = true
 					if let url = app.currentDownloadUrl {
 						_startedAt = Date()
 						_ = downloadManager.startDownload(
@@ -222,6 +231,9 @@ struct WSOneViewGetButton: View {
 			_startedAt = Date()
 			_setupObserver()
 		}
+		.onChange(of: phase) { newPhase in
+			if newPhase == .installed { _tappedGet = false }
+		}
 		.onDisappear { _cancellable?.cancel() }
 		.onChange(of: downloadManager.downloads.description) { _ in
 			_setupObserver()
@@ -285,6 +297,7 @@ struct OneViewInstallView: View {
 	@State private var _startedAt = Date()
 	@State private var _presentingInstall = false
 	@State private var _signingApp: Imported?
+	@State private var _tappedGet = false
 
 	private var tracker: OneViewTracker {
 		OneViewTracker(sourceURL: sourceURL, source: source, app: app, startedAt: _startedAt)
@@ -307,12 +320,13 @@ struct OneViewInstallView: View {
 	}
 
 	private var _phase: OneViewPhase {
-		tracker.phase(
+		let resolved = tracker.phase(
 			downloadManager: downloadManager,
 			autoSignManager: autoSignManager,
 			signed: Array(_signedApps),
 			imported: Array(_importedApps)
 		)
+		return (resolved == .idle && _tappedGet) ? .preparing : resolved
 	}
 
 	var body: some View {
@@ -386,6 +400,9 @@ struct OneViewInstallView: View {
 				SigningView(app: imported)
 			}
 			.onAppear { _startedAt = Date() }
+			.onChange(of: _phase) { newPhase in
+				if newPhase == .installed { _tappedGet = false }
+			}
 		}
 	}
 }
@@ -405,6 +422,7 @@ extension OneViewInstallView {
 						_dismissAndPresentSign(imported)
 						return
 					}
+					_tappedGet = true
 					if let url = app.currentDownloadUrl {
 						_ = downloadManager.startDownload(
 							from: url,

@@ -4,8 +4,8 @@
 
 # SignOs
 
-The on-device signing store for iOS. Your apps update themselves, signing happens in
-the background, and you never think about certificates again.
+The on-device signing store for iOS. Your apps update themselves, signing happens in the
+background, and you never think about certificates again.
 
 Made By [@ihateios](https://t.me/ihateios)
 
@@ -21,7 +21,7 @@ It's built on top of the open source [Feather](https://github.com/claration/Feat
 SignOs is owned and developed by me, @ihateios — huge thanks to clARATION and the Feather
 contributors for their work, this wouldn't exist without them.
 
-## Automatic updates
+## Automatic Updates
 
 This is the core of SignOs. Once you flip on Update Automatically, the app checks your
 repositories on a schedule you pick (hourly up to daily) and handles everything end to end:
@@ -50,8 +50,8 @@ depend on it, plus a Check Revocation Now button and a one-tap Renew All.
 
 ## OneView install
 
-Tap Get on any app in Discover or Search and a single screen runs the whole journey:
-download progress with speed and ETA, signing status, then Install and Open. No jumping
+Tap Get on any app in Discover or Search and the button itself runs the whole journey:
+download progress ring with speed, signing status, then Install and Open. No jumping
 between screens, no hunting for what happened to your download.
 
 ## App Cloner
@@ -70,16 +70,16 @@ one tap removes it. No re-importing the same files every single time.
 - Discover tab with featured apps and source cards, Search across all your sources,
   a Library with filters, and an Updates tab in App Store style
 - Default launch tab setting — open on Library, Updates, wherever you like
-- Import & export folder picker, with security-scoped access
+- Exports save to Archives, visible and shareable in the Files app
 - Full signing options: PPQ protection, Liquid Glass patching, appearance changes,
   minimum iOS version, injection paths, ElleKit for tweak injection
 - Storage manager with superseded copy and duplicate cleanup
 - Activity timeline showing everything SignOs did in the background
 - Backup and restore for sources and preferences
 - Face ID lock
-- Shortcuts actions: Check for Updates, Install Pending Updates
+- Shortcuts app actions: Check for Updates, Install Pending Updates
 - Certificates manager, AltStore-compatible sources, `signos://` URL scheme
-- Liquid Glass design on iOS 26, clean Apple-style interface everywhere
+- Liquid Glass design on iOS 26, clean Apple-style interface throughout
 
 ## Install
 

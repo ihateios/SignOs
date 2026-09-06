@@ -71,41 +71,26 @@ final class ArchiveHandler: NSObject {
 	
 	func moveToArchive(_ package: URL, shouldOpen: Bool = false) async throws -> URL? {
 		let appendingString = "\(_app.name!)_\(_app.version!)_\(Int(Date().timeIntervalSince1970)).ipa"
-		var dest = _fileManager.archives.appendingPathComponent(appendingString)
-		var usedCustomFolder = false
+		let dest = _fileManager.archives.appendingPathComponent(appendingString)
 
-		// Prefer the user's chosen import/export folder when set.
-		if let custom = WSFiles.withExportFolder({ folder -> URL in
-			let target = folder.appendingPathComponent(appendingString)
-			try? _fileManager.removeItem(at: target)
-			try _fileManager.moveItem(at: package, to: target)
-			return target
-		}) {
-			dest = custom
-			usedCustomFolder = true
-		} else {
-			try? _fileManager.removeItem(at: dest)
-			try _fileManager.moveItem(at: package, to: dest)
-		}
-		
+		try? _fileManager.removeItem(at: dest)
+		try _fileManager.moveItem(at: package, to: dest)
+
 		if shouldOpen {
-			let openURL = usedCustomFolder ? dest : FileManager.default.archives.toSharedDocumentsURL()!
 			await MainActor.run {
-				UIApplication.open(openURL)
+				UIApplication.open(FileManager.default.archives.toSharedDocumentsURL()!)
 			}
 		}
-		
+
 		return dest
-	}
 	
-	/// Background operations (automatic updates/installs) force the
-	/// fastest compression so packaging never delays the install.
+	}
+
 	static var fastestCompressionOverride: Bool = false
 
 	static func getCompressionLevel() -> Int {
-		if fastestCompressionOverride {
-			return 0
-		}
+		if fastestCompressionOverride { return 0 }
 		return UserDefaults.standard.integer(forKey: "Feather.compressionLevel")
 	}
 }
+

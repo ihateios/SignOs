@@ -118,7 +118,6 @@ struct LibraryView: View {
 				FileImporterRepresentableView(
 					allowedContentTypes: [.ipa, .tipa],
 					allowsMultipleSelection: true,
-					directoryURL: WSFiles.importPickerDirectory,
 					onDocumentsPicked: { urls in
 						guard !urls.isEmpty else { return }
 						for url in urls {
@@ -251,6 +250,15 @@ extension LibraryView {
 			WSActionButton(title: "Open") {
 				UIApplication.openApp(with: app.identifier ?? "")
 			}
+		} else if _isInstalling(app) {
+			HStack(spacing: 8) {
+				ProgressView()
+					.frame(width: 16, height: 16)
+				Text(.localized("Installing"))
+					.font(.caption.weight(.semibold))
+					.foregroundStyle(.secondary)
+			}
+			.frame(minWidth: 68, minHeight: 30)
 		} else {
 			WSActionButton(title: "Get", systemImage: "arrow.down.circle") {
 				if autoSignManager.isAutoSignEnabled {
@@ -261,6 +269,11 @@ extension LibraryView {
 				}
 			}
 		}
+	}
+
+	private func _isInstalling(_ app: any AppInfoPresentable) -> Bool {
+		let jobs = (autoSignManager.currentJob.map { [$0] } ?? []) + autoSignManager.queue
+		return jobs.contains { $0.appIdentifier == app.identifier }
 	}
 
 	@ViewBuilder
