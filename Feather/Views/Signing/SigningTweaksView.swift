@@ -94,7 +94,7 @@ struct SigningTweaksView: View {
 			FileImporterRepresentableView(
 				allowedContentTypes: [.dylib, .deb],
 				allowsMultipleSelection: true,
-				directoryURL: WSFiles.pickerDirectory,
+				directoryURL: WSFiles.importPickerDirectory,
 				onDocumentsPicked: { urls in
 					guard !urls.isEmpty else { return }
 					

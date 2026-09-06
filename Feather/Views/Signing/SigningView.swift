@@ -95,6 +95,17 @@ struct SigningView: View {
 			}
 			.disabled(_isSigning)
 			.animation(.smooth, value: _isSigning)
+			.simultaneousGesture(
+				DragGesture(minimumDistance: 25)
+					.onEnded { value in
+						guard
+							value.startLocation.x < 44,
+							value.translation.width > 60,
+							abs(value.translation.height) < 60
+						else { return }
+						dismiss()
+					}
+			)
 		}
 		.onAppear {
 			// ppq protection
@@ -230,9 +241,27 @@ extension SigningView {
 				NavigationLink {
 					CertificatesView(selectedCert: $_temporaryCertificate)
 				} label: {
-					CertificatesCellView(
-						cert: cert
-					)
+					HStack(spacing: 12) {
+						Image(systemName: cert.revoked ? "exclamationmark.shield.fill" : "checkmark.seal.fill")
+							.font(.title3)
+							.foregroundStyle(cert.revoked ? Color.red : Color.tint)
+						VStack(alignment: .leading, spacing: 3) {
+							Text(cert.nickname ?? .localized("Certificate"))
+								.font(.body.weight(.semibold))
+								.foregroundStyle(.primary)
+								.lineLimit(1)
+							if cert.revoked {
+								Text(.localized("Revoked — pick another certificate"))
+									.font(.caption)
+									.foregroundStyle(.red)
+							} else if let expiration = cert.expiration {
+								Text(verbatim: .localized("Expires %@").replacingOccurrences(of: "%@", with: expiration.formatted(date: .abbreviated, time: .omitted)))
+									.font(.caption)
+									.foregroundStyle(.secondary)
+							}
+						}
+						Spacer()
+					}
 				}
 			} else {
 				Text(.localized("No Certificate"))

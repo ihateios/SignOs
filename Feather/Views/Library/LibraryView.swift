@@ -111,14 +111,14 @@ struct LibraryView: View {
 					.presentationDetents([.height(200)])
 					.presentationDragIndicator(.visible)
 			}
-			.fullScreenCover(item: $_selectedSigningAppPresenting) { app in
+			.sheet(item: $_selectedSigningAppPresenting) { app in
 				SigningView(app: app.base)
 			}
 			.sheet(isPresented: $_isImportingPresenting) {
 				FileImporterRepresentableView(
 					allowedContentTypes: [.ipa, .tipa],
 					allowsMultipleSelection: true,
-					directoryURL: WSFiles.pickerDirectory,
+					directoryURL: WSFiles.importPickerDirectory,
 					onDocumentsPicked: { urls in
 						guard !urls.isEmpty else { return }
 						for url in urls {

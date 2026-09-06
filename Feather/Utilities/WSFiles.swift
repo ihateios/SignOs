@@ -2,47 +2,78 @@
 //  WSFiles.swift
 //  Feather
 //
-//  User-chosen import/export folder with security-scoped access.
+//  User-chosen import and export folders with security-scoped access.
 //
 
 import Foundation
 
 enum WSFiles {
-	static let bookmarkKey = "SignOs.importExportFolderBookmark"
-	static let nameKey = "SignOs.importExportFolderName"
+	// MARK: - Keys
 
-	static var hasCustomFolder: Bool {
-		UserDefaults.standard.data(forKey: bookmarkKey) != nil
+	static let importBookmarkKey = "SignOs.importFolderBookmark"
+	static let importNameKey = "SignOs.importFolderName"
+	static let exportBookmarkKey = "SignOs.exportFolderBookmark"
+	static let exportNameKey = "SignOs.exportFolderName"
+
+	// MARK: - State
+
+	static var hasImportFolder: Bool {
+		UserDefaults.standard.data(forKey: importBookmarkKey) != nil
 	}
 
-	static var folderName: String {
-		UserDefaults.standard.string(forKey: nameKey) ?? "Documents/Archives"
+	static var hasExportFolder: Bool {
+		UserDefaults.standard.data(forKey: exportBookmarkKey) != nil
 	}
 
-	static func saveBookmark(for url: URL) {
+	static var importFolderName: String {
+		UserDefaults.standard.string(forKey: importNameKey) ?? "Last visited"
+	}
+
+	static var exportFolderName: String {
+		UserDefaults.standard.string(forKey: exportNameKey) ?? "Documents/Archives"
+	}
+
+	// MARK: - Saving
+
+	static func saveImportBookmark(for url: URL) {
+		_save(url, key: importBookmarkKey, nameKey: importNameKey)
+	}
+
+	static func saveExportBookmark(for url: URL) {
+		_save(url, key: exportBookmarkKey, nameKey: exportNameKey)
+	}
+
+	static func clearImportFolder() {
+		UserDefaults.standard.removeObject(forKey: importBookmarkKey)
+		UserDefaults.standard.removeObject(forKey: importNameKey)
+	}
+
+	static func clearExportFolder() {
+		UserDefaults.standard.removeObject(forKey: exportBookmarkKey)
+		UserDefaults.standard.removeObject(forKey: exportNameKey)
+	}
+
+	private static func _save(_ url: URL, key: String, nameKey: String) {
 		let scoped = url.startAccessingSecurityScopedResource()
 		let data = try? url.bookmarkData()
 		if scoped { url.stopAccessingSecurityScopedResource() }
-		UserDefaults.standard.set(data, forKey: bookmarkKey)
+		UserDefaults.standard.set(data, forKey: key)
 		UserDefaults.standard.set(url.lastPathComponent, forKey: nameKey)
 	}
 
-	static func clearBookmark() {
-		UserDefaults.standard.removeObject(forKey: bookmarkKey)
-		UserDefaults.standard.removeObject(forKey: nameKey)
-	}
+	// MARK: - Resolution
 
-	/// Resolves the picker's starting directory (no security scope needed).
-	static var pickerDirectory: URL? {
-		guard let data = UserDefaults.standard.data(forKey: bookmarkKey) else { return nil }
+	/// Starting directory for file pickers (no security scope needed).
+	static var importPickerDirectory: URL? {
+		guard let data = UserDefaults.standard.data(forKey: importBookmarkKey) else { return nil }
 		var stale = false
 		return try? URL(resolvingBookmarkData: data, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)
 	}
 
-	/// Runs `body` with the custom folder resolved and security scope active.
-	/// Returns nil when no custom folder is set (or it is no longer readable).
-	static func withCustomFolder<T>(_ body: (URL) throws -> T) -> T? {
-		guard let data = UserDefaults.standard.data(forKey: bookmarkKey) else { return nil }
+	/// Runs `body` with the export folder resolved and security scope active.
+	/// Returns nil when no export folder is set (or it is no longer readable).
+	static func withExportFolder<T>(_ body: (URL) throws -> T) -> T? {
+		guard let data = UserDefaults.standard.data(forKey: exportBookmarkKey) else { return nil }
 		var stale = false
 		guard
 			let url = try? URL(resolvingBookmarkData: data, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)

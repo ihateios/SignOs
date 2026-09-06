@@ -75,7 +75,7 @@ final class ArchiveHandler: NSObject {
 		var usedCustomFolder = false
 
 		// Prefer the user's chosen import/export folder when set.
-		if let custom = WSFiles.withCustomFolder({ folder -> URL in
+		if let custom = WSFiles.withExportFolder({ folder -> URL in
 			let target = folder.appendingPathComponent(appendingString)
 			try? _fileManager.removeItem(at: target)
 			try _fileManager.moveItem(at: package, to: target)
