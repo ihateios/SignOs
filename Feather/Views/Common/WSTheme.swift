@@ -101,22 +101,3 @@ struct WSEmptyState: View {
 
 // MARK: - Section Header
 
-struct WSSectionHeader: View {
-	let title: String
-	var count: Int? = nil
-
-	var body: some View {
-		HStack(alignment: .firstTextBaseline) {
-			Text(title)
-				.font(WSType.sectionTitle)
-				.foregroundStyle(.primary)
-			Spacer()
-			if let count {
-				Text(verbatim: count == 1 ? "1" : "\(count)")
-					.font(WSType.eyebrow)
-					.foregroundStyle(.tertiary)
-					.monospacedDigit()
-			}
-		}
-	}
-}
