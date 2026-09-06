@@ -180,6 +180,17 @@ extension SettingsView {
 			}
 			.tint(.accentColor)
 
+			Toggle(isOn: Binding(
+				get: { autoUpdateManager.isSelfHealEnabled },
+				set: { autoUpdateManager.isSelfHealEnabled = $0 }
+			)) {
+				HStack(spacing: 12) {
+					WSIconTile(systemImage: "arrow.clockwise.heart", color: .mint)
+					Text(.localized("Self-Heal Revoked Apps"))
+				}
+			}
+			.tint(.accentColor)
+
 			Toggle(isOn: $_autoDeleteOldVersions) {
 				HStack(spacing: 12) {
 					WSIconTile(systemImage: "arrow.3.trianglepath", color: .orange)

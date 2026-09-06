@@ -24,6 +24,7 @@ struct CertHealthView: View {
 	) private var _signedApps: FetchedResults<Signed>
 
 	@State private var _renewMessage: String?
+	@State private var _revocationMessage: String?
 	@State private var _reinstallEverything = false
 
 	var body: some View {
@@ -52,6 +53,13 @@ struct CertHealthView: View {
 						.disabled(_bestCertificate == nil || _signedApps.isEmpty)
 
 						Button {
+							_checkRevocations()
+						} label: {
+							Label(.localized("Check Revocation Status Now"), systemImage: "shield.lefthalf.filled")
+						}
+						.disabled(_certificates.isEmpty)
+
+						Button {
 							_reinstallEverything = true
 						} label: {
 							Label(.localized("Reinstall Everything"), systemImage: "arrow.clockwise.circle.fill")
@@ -74,7 +82,18 @@ struct CertHealthView: View {
 						}
 					}
 
-					if let message = _renewMessage {
+					Section {
+						Toggle(isOn: Binding(
+							get: { AutoUpdateManager.shared.isSelfHealEnabled },
+							set: { AutoUpdateManager.shared.isSelfHealEnabled = $0 }
+						)) {
+							Label(.localized("Self-Heal Revoked Apps"), systemImage: "arrow.clockwise.heart")
+						}
+					} footer: {
+						Text(.localized("When a certificate is revoked, affected apps are automatically re-signed with your healthiest certificate and prepared for install."))
+					}
+
+					if let message = _revocationMessage ?? _renewMessage {
 						Section {
 							Text(message)
 								.font(.footnote)
@@ -172,6 +191,17 @@ extension CertHealthView {
 		_certificates
 			.filter { !$0.revoked && ($0.expiration.map { $0.timeIntervalSinceNow > 86400 } ?? true) }
 			.max { ($0.expiration ?? .distantPast) < ($1.expiration ?? .distantPast) }
+	}
+
+	private func _checkRevocations() {
+		UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+		let certs = Storage.shared.getAllCertificates()
+		for cert in certs {
+			Storage.shared.revokagedCertificate(for: cert)
+		}
+		_revocationMessage = certs.isEmpty
+			? .localized("No certificates to check.")
+			: .localized("Checked %lld certificates against Apple's revocation status.", arguments: certs.count)
 	}
 
 	private func _renewAll() {

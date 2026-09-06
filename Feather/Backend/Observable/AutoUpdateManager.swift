@@ -50,6 +50,11 @@ final class AutoUpdateManager: ObservableObject {
 		set { UserDefaults.standard.set(newValue, forKey: "SignOs.autoUpdateWifiOnly") }
 	}
 
+	var isSelfHealEnabled: Bool {
+		get { UserDefaults.standard.object(forKey: "SignOs.selfHealRevoked") as? Bool ?? true }
+		set { UserDefaults.standard.set(newValue, forKey: "SignOs.selfHealRevoked") }
+	}
+
 	var isNightWindowOnly: Bool {
 		get { UserDefaults.standard.object(forKey: "SignOs.autoUpdateNightOnly") as? Bool ?? false }
 		set { UserDefaults.standard.set(newValue, forKey: "SignOs.autoUpdateNightOnly") }
@@ -312,6 +317,21 @@ final class AutoUpdateManager: ObservableObject {
 	func checkRenewals() {
 		guard isAutoRenewEnabled else { return }
 
+		// Self-Heal: re-verify revocation status against Apple's own
+		// checks (throttled to once per 6h per certificate). Revoked
+		// certificates immediately qualify for re-sign below.
+		if isSelfHealEnabled {
+			let now = Date()
+			for cert in Storage.shared.getAllCertificates() where !cert.revoked {
+				guard let uuid = cert.uuid else { continue }
+				let key = "SignOs.lastRevocationCheck.\(uuid)"
+				let last = UserDefaults.standard.object(forKey: key) as? Date ?? .distantPast
+				if now.timeIntervalSince(last) < 6 * 3600 { continue }
+				UserDefaults.standard.set(now, forKey: key)
+				Storage.shared.revokagedCertificate(for: cert)
+			}
+		}
+
 		let threshold = Double(renewThresholdDays) * 86400
 		var renewed = Set(UserDefaults.standard.stringArray(forKey: Keys.renewedUUIDs) ?? [])
 
@@ -321,7 +341,7 @@ final class AutoUpdateManager: ObservableObject {
 			let needsRenewal: Bool
 			if let cert = app.certificate {
 				if cert.revoked {
-					needsRenewal = true
+					needsRenewal = isSelfHealEnabled
 				} else if let expiration = cert.expiration {
 					needsRenewal = expiration.timeIntervalSinceNow <= threshold
 				} else {
