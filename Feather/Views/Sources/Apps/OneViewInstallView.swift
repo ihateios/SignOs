@@ -130,7 +130,7 @@ struct WSOneViewGetButton: View {
 				}
 			case .preparing:
 				ProgressView()
-					.frame(width: 64, minHeight: 30)
+					.frame(width: 64, height: 30)
 			case .ready:
 				Button {
 					_presenting = true
@@ -451,7 +451,8 @@ extension OneViewInstallView {
 				.font(.headline)
 		}
 		.foregroundStyle(.white)
-		.frame(maxWidth: .infinity, minHeight: 48)
+		.frame(maxWidth: .infinity)
+		.frame(minHeight: 48)
 		.background(
 			RoundedRectangle(cornerRadius: 15, style: .continuous)
 				.fill(color)
