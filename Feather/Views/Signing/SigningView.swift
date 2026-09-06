@@ -245,32 +245,30 @@ extension SigningView {
 	@ViewBuilder
 	private func _customizationProperties(for app: AppInfoPresentable) -> some View {
 		NBSection(.localized("Advanced")) {
-			DisclosureGroup(.localized("Modify")) {
-				NavigationLink(.localized("Existing Dylibs")) {
-					SigningDylibView(
-						app: app,
-						options: $_temporaryOptions.optional()
+			NavigationLink(.localized("Existing Dylibs")) {
+				SigningDylibView(
+					app: app,
+					options: $_temporaryOptions.optional()
+				)
+			}
+			
+			NavigationLink(.localized("Frameworks & PlugIns")) {
+				SigningFrameworksView(
+					app: app,
+					options: $_temporaryOptions.optional()
+				)
+			}
+			#if NIGHTLY || DEBUG
+				NavigationLink(.localized("Entitlements") + " (BETA)") {
+					SigningEntitlementsView(
+						bindingValue: $_temporaryOptions.appEntitlementsFile
 					)
 				}
-				
-				NavigationLink(.localized("Frameworks & PlugIns")) {
-					SigningFrameworksView(
-						app: app,
-						options: $_temporaryOptions.optional()
-					)
-				}
-				#if NIGHTLY || DEBUG
-					NavigationLink(.localized("Entitlements") + " (BETA)") {
-						SigningEntitlementsView(
-							bindingValue: $_temporaryOptions.appEntitlementsFile
-						)
-					}
-				#endif
-				NavigationLink(.localized("Tweaks")) {
-					SigningTweaksView(
-						options: $_temporaryOptions
-					)
-				}
+			#endif
+			NavigationLink(.localized("Tweaks")) {
+				SigningTweaksView(
+					options: $_temporaryOptions
+				)
 			}
 			
 			NavigationLink(.localized("Properties")) {
