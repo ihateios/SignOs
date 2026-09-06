@@ -144,7 +144,7 @@ struct InstallPreviewView: View {
 			return
 		}
 				
-		Task.detached {
+		Task.detached(priority: .userInitiated) {
 			do {
 				let handler = await ArchiveHandler(app: app, viewModel: viewModel)
 				try await handler.move()

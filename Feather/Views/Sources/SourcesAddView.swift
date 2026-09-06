@@ -142,7 +142,7 @@ struct SourcesAddView: View {
 					}
 				}
 			}
-			.animation(.default, value: _filteredRecommendedSourcesData.map { $0.data.id ?? "" })
+			.animation(.smooth, value: _filteredRecommendedSourcesData.map { $0.data.id ?? "" })
 			.task {
 				await _fetchRecommendedRepositories()
 			}

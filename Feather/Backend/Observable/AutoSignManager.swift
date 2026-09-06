@@ -143,7 +143,7 @@ final class AutoSignManager: ObservableObject {
 		queue.append(job)
 
 		if !_isRunning {
-			Task { await _run() }
+			Task(priority: .userInitiated) { await _run() }
 		}
 	}
 

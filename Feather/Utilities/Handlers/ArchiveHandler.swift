@@ -45,7 +45,7 @@ final class ArchiveHandler: NSObject {
 	}
 	
 	func archive() async throws -> URL {
-		return try await Task.detached(priority: .background) { [self] in
+		return try await Task.detached(priority: .userInitiated) { [self] in
 			guard let payloadUrl = await self._payloadUrl else {
 				throw SigningFileHandlerError.appNotFound
 			}
@@ -90,7 +90,8 @@ final class ArchiveHandler: NSObject {
 
 	static func getCompressionLevel() -> Int {
 		if fastestCompressionOverride { return 0 }
-		return UserDefaults.standard.integer(forKey: "Feather.compressionLevel")
+		let level = UserDefaults.standard.integer(forKey: "Feather.compressionLevel")
+		return min(level, 1)
 	}
 }
 

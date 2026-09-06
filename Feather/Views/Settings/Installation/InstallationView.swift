@@ -51,7 +51,7 @@ struct InstallationView: View {
 		}
 
 
-		.animation(.default, value: _installationMethod)
+		.animation(.smooth, value: _installationMethod)
 	}
 }
 

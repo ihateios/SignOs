@@ -149,7 +149,7 @@ struct SourceAppsView: View {
 				return SourceRepositoryContext(sourceURL: source.sourceURL, repository: repository)
 			}
 			_sourceContexts = loadedSources
-			withAnimation(.easeIn(duration: 0.2)) {
+			withAnimation(.smooth) {
 				isLoading = false
 			}
 		}
