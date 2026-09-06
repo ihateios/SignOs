@@ -66,28 +66,6 @@ enum WSSemantic {
 	static let info = Color.blue
 }
 
-// MARK: - Reusable Card Container
-
-struct WSCard<Content: View>: View {
-	var cornerRadius: CGFloat = WSRadius.lg
-	@ViewBuilder var content: Content
-
-	init(cornerRadius: CGFloat = WSRadius.lg, @ViewBuilder content: @escaping () -> Content) {
-		self.cornerRadius = cornerRadius
-		self.content = content()
-	}
-
-	var body: some View {
-		content
-			.padding(WSSpacing.cardPadding)
-			.frame(maxWidth: .infinity, alignment: .leading)
-			.background(
-				WSRadius.continuous(cornerRadius)
-					.fill(WSSurface.card)
-			)
-	}
-}
-
 // MARK: - Empty State (unified across the app)
 
 struct WSEmptyState: View {
