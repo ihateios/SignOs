@@ -18,19 +18,18 @@ struct ExtendedTabbarView: View {
 	init() {
 		let stored = UserDefaults.standard.string(forKey: "SignOs.defaultTab") ?? TabEnum.discover.rawValue
 		__selection = State(initialValue: TabEnum(rawValue: stored) ?? .discover)
-		__defaultTabRaw = State(initialValue: stored)
 	}
 
 	var body: some View {
 		TabView(selection: $_selection) {
 			ForEach(TabEnum.defaultTabs, id: \.hashValue) { tab in
-				Tab(value: tab, title: tab.title, systemImage: tab.icon) {
+				Tab(tab.title, systemImage: tab.icon, value: tab) {
 					TabEnum.view(for: tab)
 				}
 			}
 
 			ForEach(TabEnum.customizableTabs, id: \.hashValue) { tab in
-				Tab(value: tab, title: tab.title, systemImage: tab.icon) {
+				Tab(tab.title, systemImage: tab.icon, value: tab) {
 					TabEnum.view(for: tab)
 				}
 				.customizationID("tab.\(tab.rawValue)")
