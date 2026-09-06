@@ -147,7 +147,7 @@ struct WSOneViewGetButton: View {
 				.buttonStyle(.borderless)
 			case .installed:
 				Button {
-					UIApplication.openApp(with: app.id)
+					UIApplication.openApp(with: app.id ?? "")
 				} label: {
 					Text(.localized("Open"))
 						.lineLimit(0)
@@ -425,7 +425,7 @@ extension OneViewInstallView {
 
 			case .installed:
 				Button {
-					UIApplication.openApp(with: app.id)
+					UIApplication.openApp(with: app.id ?? "")
 				} label: {
 					_prominentButton(title: "Open", systemImage: "app.badge.fill", color: .green)
 				}
