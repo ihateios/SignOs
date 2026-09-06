@@ -68,22 +68,18 @@ struct StorageView: View {
 					.disabled(_isCleaning || _supersededCount == 0)
 
 					Button {
-						_clearArchives()
-					} label: {
-						Label(.localized("Clear Archives"), systemImage: "archivebox")
-					}
-					.disabled(_isCleaning || (_sizes[.archives] ?? 0) == 0)
-				}
-
-				NBSection(.localized("Duplicates")) {
-					Button {
 						_cleanDuplicates()
 					} label: {
 						Label(.localized("Remove Imported Duplicates"), systemImage: "square.stack.3d.up.slash")
 					}
 					.disabled(_isCleaning || _duplicateCount == 0)
-				} footer: {
-					Text(.localized("Imported copies of apps that already have an installed version."))
+
+					Button {
+						_clearArchives()
+					} label: {
+						Label(.localized("Clear Archives"), systemImage: "archivebox")
+					}
+					.disabled(_isCleaning || (_sizes[.archives] ?? 0) == 0)
 				}
 
 				if let message = _cleanedMessage {
@@ -97,16 +93,30 @@ struct StorageView: View {
 		}
 		.onAppear { _refreshSizes() }
 	}
+}
 
+// MARK: - Matching
+extension StorageView {
+	/// PPQ protection can change identifiers between signs, so group
+	/// by display name first and fall back to the identifier.
 	private func _matchKey(_ name: String?, _ identifier: String?) -> String? {
-		// PPQ protection can change identifiers between signs, so group
-		// by display name first and fall back to the identifier.
 		if let name, !name.isEmpty { return "name:" + name.lowercased() }
 		if let identifier, !identifier.isEmpty { return "id:" + identifier }
 		return nil
 	}
+}
 
+// MARK: - Counts
+extension StorageView {
 	private var _supersededCount: Int {
+		_supersededVictims().count
+	}
+
+	private var _duplicateCount: Int {
+		_duplicateVictims().count
+	}
+
+	private func _supersededVictims() -> [Signed] {
 		var newestByKey: [String: Date] = [:]
 		for app in _signedApps {
 			guard let key = _matchKey(app.name, app.identifier) else { continue }
@@ -115,85 +125,75 @@ struct StorageView: View {
 				newestByKey[key] = date
 			}
 		}
+
 		return _signedApps.filter { app in
 			guard let key = _matchKey(app.name, app.identifier) else { return false }
 			guard let newest = newestByKey[key] else { return false }
 			return (app.date ?? .distantPast) < newest
-		}.count
+		}
 	}
 
-	private func _cleanSuperseded() {
-		UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-		_isCleaning = true
-
-		var newestByKey: [String: Date] = [:]
-		for app in _signedApps {
-			guard let key = _matchKey(app.name, app.identifier) else { continue }
-			let date = app.date ?? .distantPast
-			if date > (newestByKey[key] ?? .distantPast) {
-				newestByKey[key] = date
-			}
-		}
-
-		var victims: [Signed] = []
-		for app in _signedApps {
-			guard let key = _matchKey(app.name, app.identifier) else { continue }
-			guard let newest = newestByKey[key] else { continue }
-			if (app.date ?? .distantPast) < newest {
-				victims.append(app)
-			}
-		}
-
-		var removed = 0
-		for victim in victims {
-			Storage.shared.deleteApp(for: victim)
-			removed += 1
-		}
-
-		_isCleaning = false
-		_cleanedMessage = removed == 0
-			? .localized("Nothing to clean up.")
-			: .localized("Removed %lld old copies.", arguments: removed)
-		_refreshSizes()
-	}
-
-	private var _duplicateCount: Int {
+	private func _duplicateVictims() -> [Imported] {
 		let installedNames = Set(_signedApps.compactMap { $0.name?.lowercased() })
 		let installedIds = Set(_signedApps.compactMap { $0.identifier })
+
 		return _importedApps.filter { imported in
 			if let identifier = imported.identifier, installedIds.contains(identifier) { return true }
 			if let name = imported.name?.lowercased(), installedNames.contains(name) { return true }
 			return false
-		}.count
+		}
+	}
+}
+
+// MARK: - Actions
+extension StorageView {
+	private func _cleanSuperseded() {
+		UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+		_isCleaning = true
+
+		let victims = _supersededVictims()
+		for victim in victims {
+			Storage.shared.deleteApp(for: victim)
+		}
+
+		_isCleaning = false
+		_cleanedMessage = victims.isEmpty
+			? .localized("Nothing to clean up.")
+			: .localized("Removed %lld old copies.", arguments: victims.count)
+		_refreshSizes()
 	}
 
 	private func _cleanDuplicates() {
 		UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 		_isCleaning = true
 
-		let installedNames = Set(_signedApps.compactMap { $0.name?.lowercased() })
-		let installedIds = Set(_signedApps.compactMap { $0.identifier })
-
-		var victims: [Imported] = []
-		for imported in _importedApps {
-			if let identifier = imported.identifier, installedIds.contains(identifier) {
-				victims.append(imported)
-			} else if let name = imported.name?.lowercased(), installedNames.contains(name) {
-				victims.append(imported)
-			}
-		}
-
-		var removed = 0
+		let victims = _duplicateVictims()
 		for victim in victims {
 			Storage.shared.deleteApp(for: victim)
-			removed += 1
 		}
 
 		_isCleaning = false
-		_cleanedMessage = removed == 0
+		_cleanedMessage = victims.isEmpty
 			? .localized("Nothing to clean up.")
-			: .localized("Removed %lld imported duplicates.", arguments: removed)
+			: .localized("Removed %lld imported duplicates.", arguments: victims.count)
 		_refreshSizes()
+	}
+
+	private func _clearArchives() {
+		UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+		try? FileManager.default.removeItem(at: FileManager.default.archives)
+		try? FileManager.default.createDirectoryIfNeeded(at: FileManager.default.archives)
+		_cleanedMessage = .localized("Archives cleared.")
+		_refreshSizes()
+	}
+
+	private func _icon(for category: Category) -> String {
+		switch category {
+		case .archives: return "archivebox"
+		case .certificates: return "checkmark.seal"
+		case .installed: return "square.stack.3d.up.fill"
+		case .imports: return "tray.and.arrow.down.fill"
+		}
 	}
 
 	private func _refreshSizes() {
@@ -221,72 +221,5 @@ struct StorageView: View {
 			}
 		}
 		return total
-	}
-
-	private var _duplicateCount: Int {
-		let installedIdentifiers = Set(_signedApps.compactMap { $0.identifier })
-		return _importedApps.filter { imported in
-			guard let identifier = imported.identifier else { return false }
-			return installedIdentifiers.contains(identifier)
-		}.count
-	}
-
-	private func _cleanDuplicates() {
-		UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-		_isCleaning = true
-
-		let installedIdentifiers = Set(_signedApps.compactMap { $0.identifier })
-		var removed = 0
-		for imported in _importedApps {
-			guard let identifier = imported.identifier else { continue }
-			if installedIdentifiers.contains(identifier) {
-				Storage.shared.deleteApp(for: imported)
-				removed += 1
-			}
-		}
-
-		_isCleaning = false
-		_cleanedMessage = removed == 0
-			? .localized("Nothing to clean up.")
-			: .localized("Removed %lld imported duplicates.", arguments: removed)
-		_refreshSizes()
-	}
-
-	private func _cleanSuperseded() {
-		UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-		_isCleaning = true
-
-		var newestByUUID: [String: Date] = [:]
-		for app in _signedApps {
-			guard let identifier = app.identifier else { continue }
-			let date = app.date ?? .distantPast
-			if date > (newestByUUID[identifier] ?? .distantPast) {
-				newestByUUID[identifier] = date
-			}
-		}
-
-		var removed = 0
-		for app in _signedApps {
-			guard let identifier = app.identifier else { continue }
-			guard let newest = newestByUUID[identifier] else { continue }
-			if (app.date ?? .distantPast) < newest {
-				Storage.shared.deleteApp(for: app)
-				removed += 1
-			}
-		}
-
-		_isCleaning = false
-		_cleanedMessage = removed == 0
-			? .localized("Nothing to clean up.")
-			: .localized("Removed %lld old copies.", arguments: removed)
-		_refreshSizes()
-	}
-
-	private func _clearArchives() {
-		UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-		try? FileManager.default.removeItem(at: FileManager.default.archives)
-		try? FileManager.default.createDirectoryIfNeeded(at: FileManager.default.archives)
-		_cleanedMessage = .localized("Archives cleared.")
-		_refreshSizes()
 	}
 }

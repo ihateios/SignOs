@@ -16,16 +16,13 @@ struct DiscoverView: View {
 	@StateObject private var viewModel = SourcesViewModel.shared
 	@State private var _isAddingPresenting = false
 	@State private var _autoSourceOverrides: [String: Bool] = [:]
+	@State private var _refreshDates: [String: Date] = UserDefaults.standard.dictionary(forKey: "SignOs.sourceRefreshDates") as? [String: Date] ?? [:]
 
 	@FetchRequest(
 		entity: AltSource.entity(),
 		sortDescriptors: [NSSortDescriptor(keyPath: \AltSource.name, ascending: true)],
 		animation: .snappy
 	) private var _sources: FetchedResults<AltSource>
-
-	private var _hasContent: Bool {
-		!_sources.isEmpty && viewModel.sources.values.contains { !$0.apps.isEmpty }
-	}
 
 	private var _featured: [(source: AltSource, repository: ASRepository, app: ASRepository.App)] {
 		var result: [(AltSource, ASRepository, ASRepository.App)] = []
@@ -70,6 +67,7 @@ struct DiscoverView: View {
 			.toolbar(.hidden, for: .navigationBar)
 			.refreshable {
 				await viewModel.fetchSources(_sources, refresh: true)
+				_markRefreshed()
 			}
 			.sheet(isPresented: $_isAddingPresenting) {
 				SourcesAddView()
@@ -78,6 +76,7 @@ struct DiscoverView: View {
 		.task(id: Array(_sources)) {
 			await viewModel.fetchSources(_sources)
 			_autoSourceOverrides = UserDefaults.standard.dictionary(forKey: "SignOs.sourceAutoUpdate") as? [String: Bool] ?? [:]
+			_markRefreshed()
 		}
 	}
 }
@@ -104,7 +103,7 @@ extension DiscoverView {
 						.buttonStyle(.plain)
 					}
 				}
-				}
+			}
 		}
 	}
 
@@ -168,6 +167,9 @@ extension DiscoverView {
 							_sourceCard(source)
 						}
 						.buttonStyle(.plain)
+						.contextMenu {
+							_sourceContextMenu(source)
+						}
 					}
 				}
 			}
@@ -204,8 +206,7 @@ extension DiscoverView {
 	}
 
 	private func _sourceCard(_ source: AltSource) -> some View {
-		let autoEnabled = _autoSourceOverrides[source.identifier ?? ""] ?? true
-		return HStack(spacing: 14) {
+		HStack(spacing: 14) {
 			WSAppIcon(url: source.iconURL, size: 48, cornerRadius: 11)
 
 			VStack(alignment: .leading, spacing: 2) {
@@ -213,7 +214,7 @@ extension DiscoverView {
 					.font(.body.weight(.semibold))
 					.foregroundStyle(.primary)
 					.lineLimit(1)
-				Text(verbatim: _sourceCaption(source, autoEnabled: autoEnabled))
+				Text(verbatim: _sourceCaption(source))
 					.font(.caption)
 					.foregroundStyle(.secondary)
 					.lineLimit(1)
@@ -230,27 +231,6 @@ extension DiscoverView {
 			RoundedRectangle(cornerRadius: 20, style: .continuous)
 				.fill(Color(uiColor: .secondarySystemGroupedBackground))
 		)
-		.contextMenu {
-			Button {
-				let identifier = source.identifier ?? ""
-				let now = !(_autoSourceOverrides[identifier] ?? true)
-				_autoSourceOverrides[identifier] = now
-				AutoUpdateManager.shared.setSourceAutoUpdate(now, for: source)
-			} label: {
-				Label(
-					autoEnabled ? "Disable Auto-Updates" : "Enable Auto-Updates",
-					systemImage: "automatic"
-				)
-			}
-
-			Divider()
-
-			Button(role: .destructive) {
-				Storage.shared.deleteSource(for: source)
-			} label: {
-				Label("Remove Source", systemImage: "trash")
-			}
-		}
 	}
 
 	private func _emptyCard() -> some View {
@@ -315,18 +295,44 @@ extension DiscoverView {
 	}
 }
 
-// MARK: - Helpers
+// MARK: - Source health & rules
 extension DiscoverView {
-	private func _appCount(_ source: AltSource) -> String {
-		let count = viewModel.sources[source]?.apps.count ?? 0
-		return count == 1 ? "1 app" : "\(count) apps"
+	private func _sourceContextMenu(_ source: AltSource) -> some View {
+		let autoEnabled = _autoSourceOverrides[source.identifier ?? ""] ?? true
+		return Group {
+			Button {
+				let identifier = source.identifier ?? ""
+				let now = !(_autoSourceOverrides[identifier] ?? true)
+				_autoSourceOverrides[identifier] = now
+				AutoUpdateManager.shared.setSourceAutoUpdate(now, for: source)
+			} label: {
+				Label(
+					autoEnabled ? "Disable Auto-Updates" : "Enable Auto-Updates",
+					systemImage: "automatic"
+				)
+			}
+
+			Divider()
+
+			Button(role: .destructive) {
+				Storage.shared.deleteSource(for: source)
+			} label: {
+				Label("Remove Source", systemImage: "trash")
+			}
+		}
 	}
 
-}
+	private func _markRefreshed() {
+		for source in _sources {
+			_refreshDates[source.identifier ?? ""] = Date()
+		}
+		UserDefaults.standard.set(_refreshDates, forKey: "SignOs.sourceRefreshDates")
+	}
 
-extension DiscoverView {
-	private func _sourceCaption(_ source: AltSource, autoEnabled: Bool) -> String {
+	private func _sourceCaption(_ source: AltSource) -> String {
 		let count = viewModel.sources[source]?.apps.count
+		let autoOff = !(_autoSourceOverrides[source.identifier ?? ""] ?? true)
+
 		let base: String
 		if let count {
 			base = count == 1 ? "1 app" : "\(count) apps"
@@ -336,7 +342,7 @@ extension DiscoverView {
 			return "Couldn't refresh"
 		}
 
-		let suffix = autoEnabled ? "" : " • Auto-Updates Off"
+		let suffix = autoOff ? " • Auto-Updates Off" : ""
 		if let last = _refreshDates[source.identifier ?? ""] {
 			return "\(base) • \(last.formatted(.relative(presentation: .named)))\(suffix)"
 		}

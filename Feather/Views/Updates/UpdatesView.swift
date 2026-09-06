@@ -3,7 +3,7 @@
 //  Feather
 //
 //  App Store-style updates surface, built from scratch: available
-//  updates, the background signing queue, active downloads and
+//  updates, the background install queue, active downloads and
 //  recently updated apps.
 //
 
@@ -24,6 +24,12 @@ struct UpdatesView: View {
 		sortDescriptors: [NSSortDescriptor(keyPath: \Signed.date, ascending: false)],
 		animation: .snappy
 	) private var _signedApps: FetchedResults<Signed>
+
+	@FetchRequest(
+		entity: Imported.entity(),
+		sortDescriptors: [NSSortDescriptor(keyPath: \Imported.date, ascending: false)],
+		animation: .snappy
+	) private var _importedApps: FetchedResults<Imported>
 
 	private var _recentlyUpdated: [Signed] {
 		let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? Date()
@@ -51,9 +57,9 @@ struct UpdatesView: View {
 
 					if !_sortedUpdates.isEmpty {
 						_availableUpdatesSection()
+					}
 
-
-					_heldSection()					}
+					_heldSection()
 
 					if autoSignManager.currentJob != nil || !autoSignManager.queue.isEmpty || !downloadManager.downloads.isEmpty {
 						_activitySection()
@@ -226,6 +232,7 @@ extension UpdatesView {
 			} label: {
 				Label(.localized("Auto-Update"), systemImage: "automatic")
 			}
+
 			Divider()
 
 			Button {
@@ -240,6 +247,55 @@ extension UpdatesView {
 				updateManager.dismissUpdate(withLocalUUID: update.id)
 			} label: {
 				Label(.localized("Hold Updates for This App"), systemImage: "pause.circle")
+			}
+		}
+	}
+
+	@ViewBuilder
+	private func _heldSection() -> some View {
+		let rows = _heldApps()
+		if !rows.isEmpty {
+			VStack(alignment: .leading, spacing: 12) {
+				WSSectionTitle(title: "Held & Skipped")
+
+				VStack(spacing: 10) {
+					ForEach(rows, id: \.identifier) { row in
+						HStack(spacing: 14) {
+							Image(systemName: row.held ? "pause.circle.fill" : "eye.slash.fill")
+								.font(.title3)
+								.foregroundStyle(.secondary)
+								.frame(width: 30)
+
+							VStack(alignment: .leading, spacing: 3) {
+								Text(row.name)
+									.font(.body.weight(.semibold))
+									.foregroundStyle(.primary)
+									.lineLimit(1)
+								Text(verbatim: row.held
+									? "Updates held"
+									: "Skipped version \(row.skipped ?? "")")
+									.font(.caption)
+									.foregroundStyle(.secondary)
+							}
+
+							Spacer()
+
+							WSActionButton(title: row.held ? "Resume" : "Unskip", style: .quiet) {
+								if row.held {
+									updateManager.setHeld(false, for: row.identifier)
+								} else {
+									updateManager.clearSkip(for: row.identifier)
+								}
+								_heldTick += 1
+							}
+						}
+						.padding(14)
+						.background(
+							RoundedRectangle(cornerRadius: 20, style: .continuous)
+								.fill(Color(uiColor: .secondarySystemGroupedBackground))
+						)
+					}
+				}
 			}
 		}
 	}
@@ -292,10 +348,6 @@ extension UpdatesView {
 			RoundedRectangle(cornerRadius: 20, style: .continuous)
 				.fill(Color(uiColor: .secondarySystemGroupedBackground))
 		)
-	}
-
-	private func _downloadCard(_ download: Download) -> some View {
-		WSDownloadCard(download: download)
 	}
 
 	@ViewBuilder
@@ -364,49 +416,7 @@ extension UpdatesView {
 	}
 }
 
-// MARK: - Helpers
-extension UpdatesView {
-	private func _reasonLabel(_ reason: AutoSignManager.Reason) -> String {
-		switch reason {
-		case .autoSign: return .localized("Installing")
-		case .autoUpdate: return .localized("Installing Update")
-		case .renewal: return .localized("Refreshing")
-		}
-	}
-
-	private func _versionText(_ update: AppUpdate) -> String {
-		if let local = update.localVersion, !local.isEmpty {
-			return "\(local) → \(update.remoteVersion)"
-		}
-		return update.remoteVersion
-	}
-
-	private func _resolvePresentable(_ update: AppUpdate) -> (any AppInfoPresentable)? {
-		_signedApps.first { $0.uuid == update.localUUID }
-	}
-
-	private func _download(_ update: AppUpdate) {
-		UIImpactFeedbackGenerator(style: .light).impactOccurred()
-		_ = DownloadManager.shared.startDownload(
-			from: update.downloadURL,
-			id: "SignOsManualUpdate_\(update.localUUID)",
-			sourceProvenance: update.sourceProvenance
-		)
-	}
-
-	private func _downloadAll(_ updates: [AppUpdate]) {
-		UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-		for update in updates {
-			_ = DownloadManager.shared.startDownload(
-				from: update.downloadURL,
-				id: "SignOsManualUpdate_\(update.localUUID)",
-				sourceProvenance: update.sourceProvenance
-			)
-		}
-	}
-}
-
-// MARK: - Download card (isolated state for speed sampling)
+// MARK: - Rows
 struct WSDownloadCard: View {
 	let download: Download
 
@@ -432,6 +442,7 @@ struct WSDownloadCard: View {
 					.font(.caption.weight(.semibold).monospacedDigit())
 					.foregroundStyle(.secondary)
 					.contentTransition(.numericText())
+
 				Button {
 					if let dl = DownloadManager.shared.getDownload(by: download.id) {
 						DownloadManager.shared.cancelDownload(dl)
@@ -477,55 +488,25 @@ struct WSDownloadCard: View {
 	}
 }
 
-// MARK: - Held & Skipped
+// MARK: - Helpers
 extension UpdatesView {
-	@ViewBuilder
-	private func _heldSection() -> some View {
-		let rows = _heldApps()
-		if !rows.isEmpty {
-			VStack(alignment: .leading, spacing: 12) {
-				WSSectionTitle(title: "Held & Skipped")
-
-				VStack(spacing: 10) {
-					ForEach(rows, id: \.identifier) { row in
-						HStack(spacing: 14) {
-							Image(systemName: row.held ? "pause.circle.fill" : "eye.slash.fill")
-								.font(.title3)
-								.foregroundStyle(.secondary)
-								.frame(width: 30)
-
-							VStack(alignment: .leading, spacing: 3) {
-								Text(row.name)
-									.font(.body.weight(.semibold))
-									.foregroundStyle(.primary)
-									.lineLimit(1)
-								Text(verbatim: row.held
-									? "Updates held"
-									: "Skipped version \(row.skipped ?? "")")
-									.font(.caption)
-									.foregroundStyle(.secondary)
-							}
-
-							Spacer()
-
-							WSActionButton(title: row.held ? "Resume" : "Unskip", style: .quiet) {
-								if row.held {
-									updateManager.setHeld(false, for: row.identifier)
-								} else {
-									updateManager.clearSkip(for: row.identifier)
-								}
-								_heldTick += 1
-							}
-						}
-						.padding(14)
-						.background(
-							RoundedRectangle(cornerRadius: 20, style: .continuous)
-								.fill(Color(uiColor: .secondarySystemGroupedBackground))
-						)
-					}
-				}
-			}
+	private func _reasonLabel(_ reason: AutoSignManager.Reason) -> String {
+		switch reason {
+		case .autoSign: return .localized("Installing")
+		case .autoUpdate: return .localized("Installing Update")
+		case .renewal: return .localized("Refreshing")
 		}
+	}
+
+	private func _versionText(_ update: AppUpdate) -> String {
+		if let local = update.localVersion, !local.isEmpty {
+			return "\(local) → \(update.remoteVersion)"
+		}
+		return update.remoteVersion
+	}
+
+	private func _resolvePresentable(_ update: AppUpdate) -> (any AppInfoPresentable)? {
+		_signedApps.first { $0.uuid == update.localUUID }
 	}
 
 	private func _heldApps() -> [(identifier: String, name: String, held: Bool, skipped: String?)] {
@@ -541,5 +522,25 @@ extension UpdatesView {
 			}
 		}
 		return rows
+	}
+
+	private func _download(_ update: AppUpdate) {
+		UIImpactFeedbackGenerator(style: .light).impactOccurred()
+		_ = DownloadManager.shared.startDownload(
+			from: update.downloadURL,
+			id: "SignOsManualUpdate_\(update.localUUID)",
+			sourceProvenance: update.sourceProvenance
+		)
+	}
+
+	private func _downloadAll(_ updates: [AppUpdate]) {
+		UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+		for update in updates {
+			_ = DownloadManager.shared.startDownload(
+				from: update.downloadURL,
+				id: "SignOsManualUpdate_\(update.localUUID)",
+				sourceProvenance: update.sourceProvenance
+			)
+		}
 	}
 }
