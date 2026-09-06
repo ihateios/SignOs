@@ -91,8 +91,11 @@ struct WSOneViewGetButton: View {
 
 	@State private var _startedAt = Date()
 	@State private var _progress: Double = 0
-	@State private var _presenting = false
+	@State private var _speedText = ""
+	@State private var _presentingInstall = false
+	@State private var _presentingSign = false
 	@State private var _cancellable: AnyCancellable?
+	private var _speedometer = WSSpeedometer()
 
 	var body: some View {
 		let tracker = OneViewTracker(sourceURL: sourceURL, source: source, app: app, startedAt: _startedAt)
@@ -105,35 +108,78 @@ struct WSOneViewGetButton: View {
 
 		Group {
 			switch phase {
-			case .idle, .needsSign:
+			case .idle:
 				Button {
-					_presenting = true
+					UIImpactFeedbackGenerator(style: .light).impactOccurred()
+					if let url = app.currentDownloadUrl {
+						_startedAt = Date()
+						_ = downloadManager.startDownload(
+							from: url,
+							id: app.currentUniqueId,
+							sourceProvenance: _provenance()
+						)
+					}
 				} label: {
-					_getLabel(phase)
+					Text(.localized("Get"))
+						.lineLimit(0)
+						.font(.headline.bold())
+						.foregroundStyle(Color.accentColor)
+						.padding(.horizontal, 24)
+						.padding(.vertical, 6)
+						.background(Color(uiColor: .quaternarySystemFill))
+						.clipShape(Capsule())
 				}
 				.buttonStyle(.borderless)
 			case .downloading:
-				ZStack {
-					Circle()
-						.trim(from: 0, to: max(0.02, _progress))
-						.stroke(Color.accentColor, style: StrokeStyle(lineWidth: 2.3, lineCap: .round))
-						.rotationEffect(.degrees(-90))
-						.frame(width: 31, height: 31)
-					Image(systemName: "xmark")
-						.font(.caption2.bold())
-						.foregroundStyle(.tint)
+				VStack(spacing: 2) {
+					ZStack {
+						Circle()
+							.trim(from: 0, to: max(0.02, _progress))
+							.stroke(Color.accentColor, style: StrokeStyle(lineWidth: 2.3, lineCap: .round))
+							.rotationEffect(.degrees(-90))
+							.frame(width: 31, height: 31)
+						Text(verbatim: "\(Int(_progress * 100))")
+							.font(.system(size: 9, weight: .bold).monospacedDigit())
+							.foregroundStyle(.tint)
+					}
+					Text(verbatim: _speedText.isEmpty ? "…" : _speedText)
+						.font(.system(size: 8, weight: .medium).monospacedDigit())
+						.foregroundStyle(.secondary)
+						.lineLimit(1)
 				}
+				.frame(width: 56)
 				.onTapGesture {
 					if let download = downloadManager.getDownload(by: app.currentUniqueId) {
 						downloadManager.cancelDownload(download)
 					}
 				}
 			case .preparing:
-				ProgressView()
-					.frame(width: 64, height: 30)
+				VStack(spacing: 3) {
+					ProgressView()
+						.frame(width: 31, height: 31)
+					Text(.localized("Installing"))
+						.font(.system(size: 8, weight: .semibold))
+						.foregroundStyle(.secondary)
+						.lineLimit(1)
+				}
+				.frame(width: 56)
+			case .needsSign:
+				Button {
+					_presentingSign = true
+				} label: {
+					Text(.localized("Sign"))
+						.lineLimit(0)
+						.font(.headline.bold())
+						.foregroundStyle(Color.accentColor)
+						.padding(.horizontal, 20)
+						.padding(.vertical, 6)
+						.background(Color(uiColor: .quaternarySystemFill))
+						.clipShape(Capsule())
+				}
+				.buttonStyle(.borderless)
 			case .ready:
 				Button {
-					_presenting = true
+					_presentingInstall = true
 				} label: {
 					Text(.localized("Install"))
 						.lineLimit(0)
@@ -162,8 +208,15 @@ struct WSOneViewGetButton: View {
 			}
 		}
 		.animation(.easeInOut(duration: 0.3), value: phase)
-		.sheet(isPresented: $_presenting) {
-			OneViewInstallView(sourceURL: sourceURL, source: source, app: app)
+		.sheet(isPresented: $_presentingInstall) {
+			if let installed = _newestSigned() {
+				InstallPreviewView(app: installed)
+			}
+		}
+		.fullScreenCover(isPresented: $_presentingSign) {
+			if let imported = _newestImported() {
+				SigningView(app: imported)
+			}
 		}
 		.onAppear {
 			_startedAt = Date()
@@ -179,24 +232,32 @@ struct WSOneViewGetButton: View {
 		_cancellable?.cancel()
 		guard let download = downloadManager.getDownload(by: app.currentUniqueId) else {
 			_progress = 0
+			_speedText = ""
 			return
 		}
 		_progress = download.overallProgress
-		_cancellable = Publishers.CombineLatest(download.$progress, download.$unpackageProgress).sink { _, _ in
+		_cancellable = Publishers.CombineLatest(download.$progress, download.$bytesDownloaded).sink { _, bytes in
 			_progress = download.overallProgress
+			let speed = _speedometer.sample(bytes)
+			_speedText = speed.formattedSpeed
 		}
 	}
 
-	@ViewBuilder
-	private func _getLabel(_ phase: OneViewPhase) -> some View {
-		Text(verbatim: phase == .needsSign ? .localized("Sign & Install") : .localized("Get"))
-			.lineLimit(0)
-			.font(.headline.bold())
-			.foregroundStyle(Color.accentColor)
-			.padding(.horizontal, 24)
-			.padding(.vertical, 6)
-			.background(Color(uiColor: .quaternarySystemFill))
-			.clipShape(Capsule())
+	private func _provenance() -> SourceAppProvenance? {
+		guard let source else { return nil }
+		return SourceAppProvenance(sourceURL: sourceURL, repository: source, app: app)
+	}
+
+	private func _newestSigned() -> Signed? {
+		_signedApps
+			.filter { $0.identifier == app.id && ($0.date ?? .distantPast) >= _startedAt }
+			.max { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }
+	}
+
+	private func _newestImported() -> Imported? {
+		_importedApps
+			.filter { $0.identifier == app.id && ($0.date ?? .distantPast) >= _startedAt }
+			.max { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }
 	}
 }
 

@@ -43,9 +43,9 @@ jobs:
         run: |
           agvtool new-marketing-version "${GITHUB_REF_NAME#v}"
 
-      - name: Set build number
+      - name: Set build number (commit count, always increasing)
         run: |
-          agvtool new-version -all "$(git rev-parse --short HEAD)"
+          agvtool new-version -all "$(git rev-list --count HEAD)"
 
       - name: Build (unsigned, iOS device)
         run: |
